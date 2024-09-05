@@ -1,0 +1,13 @@
+POST http://127.0.0.1:8000/api/auth/signup/
+Content-Type: application/json
+
+{"username":"moshe","password":"1234","gender":"male","life_status":"divorce","phone_number":"0542345678","profession":"student","address":"tel aviv","email":"noreply@gmail.com","last_name":"levi","first_name":"moshe"}
+
+###
+
+POST http://127.0.0.1:8000/api/v1/users/auth/signin/
+Content-Type: application/json
+
+{"username":"amazon@amazon.com","password":"amazon123"}
+
+
