@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import authenticate, login as auth_login, logout as logout_method
+from django.contrib.auth import login as auth_login, logout as logout_method
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import *
 from .models import CustomUser
@@ -12,9 +12,10 @@ from django.core.mail import send_mail,BadHeaderError
 from django.conf import settings
 from social_django.utils import psa
 from django.contrib.auth.tokens import default_token_generator
-from django.contrib.auth.hashers import make_password
 from .functions import *
 from uuid import UUID
+from django.contrib.auth.hashers import check_password
+from notifications.views import *
 
 
 auth_logger = logging.getLogger('auth')
@@ -22,8 +23,7 @@ auth_logger = logging.getLogger('auth')
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
-
-
+    
 @api_view(['POST'])
 def signin(request):
     try:
@@ -32,17 +32,24 @@ def signin(request):
         username = data.get('email', '').lower().strip()
         password = data.get('password', '').strip()
 
-        auth_logger.debug(f'Attempting login for user: {username}')
+        auth_logger.debug(f'Attempt login for user: {username}')
 
-        # Authenticate user using email as the username
-        user = authenticate(request, username=username, password=password)
+        # Get the user from the database
+        try:
+            user = CustomUser.objects.get(username=username)
+        except CustomUser.DoesNotExist:
+            auth_logger.info(f'Invalid login attempt for email: {username}')
+            return Response({'status': 'error', 'message': 'Invalid email or password'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        if user is not None:
-            auth_logger.debug(f'User authenticated: {user.username}')
+        # Check if the provided password is correct
+        if check_password(password, user.password):
+            auth_logger.info(f'User authenticated: {user.username}')
+            
+            # Get user details
             user_type = user.user_type
             first_name = user.first_name
             last_name = user.last_name if user_type != 'Company' else ''
-            name = user.name if user_type == 'Company' else f"{first_name} {last_name}"
+            # name = user.name if user_type == 'Company' else f"{first_name} {last_name}"
 
             # Log in the user (start the session)
             auth_login(request, user)
@@ -52,12 +59,15 @@ def signin(request):
             refresh['user_type'] = user_type
             refresh['first_name'] = first_name
             refresh['last_name'] = last_name
-            refresh['name'] = name
             refresh['user_id'] = str(user.id)
 
-            # Include company_id if the user is a Recruiter and belongs to a company
-            if user_type == 'Recruiter' and hasattr(user, 'company'):
-                refresh['company_id'] = str(user.company.id)
+            # Check if the user is a Recruiter and belongs to a company
+            if user_type == 'Recruiter':
+                recruiter = Recruiter.objects.filter(user=user).first()
+                if recruiter and recruiter.company:
+                    refresh['company_id'] = str(recruiter.company.user_id)
+                else:
+                    refresh['company_id'] = None
 
             access = refresh.access_token
 
@@ -71,11 +81,11 @@ def signin(request):
 
         else:
             # If authentication fails
-            auth_logger.debug(f'Invalid login attempt for email: {username}')
+            auth_logger.info(f'Invalid login attempt for email: {username}')
             return Response({'status': 'error', 'message': 'Invalid email or password'}, status=status.HTTP_401_UNAUTHORIZED)
 
     except Exception as e:
-        # If any other error occurs
+        # Log any other error and return 500 response
         auth_logger.error(f'Error logging in: {str(e)}')
         return Response({'status': 'error', 'message': 'An error occurred during login'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -130,7 +140,7 @@ def user_signup(request,user_type):
             if not validate_company_email(email=email):
                 return Response({'error': 'Invalid company email'}, status=status.HTTP_400_BAD_REQUEST)
             
-            if not validate_company_website(website=website):
+            if not validate_website_url(url=website):
                 return Response({'error': 'Invalid company website'}, status=status.HTTP_400_BAD_REQUEST)
 
             if not validate_phone_number(phone_number):
@@ -144,8 +154,10 @@ def user_signup(request,user_type):
             user = CustomUser.objects.create_user(
                 username=email,  # Use email as the username
                 email=email,
-                password=make_password(password),  # Hash the password
+                password=password,  # Hash the password
                 user_type=user_type,
+                first_name = name,
+                last_name="",
                 phone_number = phone_number
             )
 
@@ -156,6 +168,7 @@ def user_signup(request,user_type):
                 website=website,
                 address=address,   
             )
+            
 
         elif user_type == 'Recruiter':
             # For Recruiter, get first_name, last_name, division, and position
@@ -166,7 +179,7 @@ def user_signup(request,user_type):
 
             try:
                 company_id = UUID(request.data.get('company'))
-                print(f"Company ID (UUID): {company_id}")  # Debugging line to print the company_id
+                auth_logger.info(f"Company ID (UUID): {company_id}")  # Debugging line to auth_logger.info the company_id
             except ValueError:
                 return Response({'message': 'Invalid company ID'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -184,17 +197,17 @@ def user_signup(request,user_type):
             # Fetch the company using the company ID
             try:
                 company = Company.objects.filter(user_id=company_id).first()
-                print(f"Company Found")  # Debugging line to confirm the company is fetched
+                auth_logger.info(f"Company Found")  # Debugging line to confirm the company is fetched
 
             except Company.DoesNotExist:
-                print(f"Company with ID {company_id} not found")  # Debugging line if company not found
+                auth_logger.info(f"Company with ID {company_id} not found")  # Debugging line if company not found
                 return Response({'message': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
 
             # Create the CustomUser instance with first and last name
             user = CustomUser.objects.create_user(
                 username=email,  # Use email as the username
                 email=email,
-                password=make_password(password),  # Hash the password
+                password=password,  # Hash the password
                 first_name=first_name,
                 last_name=last_name,
                 user_type=user_type,
@@ -219,17 +232,15 @@ def user_signup(request,user_type):
             gender = request.data.get('gender')
 
             # password validation
-            if not validate_phone_number(phone_number):
-                return Response({'message': 'Invalid company phone number'}, status=status.HTTP_400_BAD_REQUEST)
             
-            if not validate_talent_email():
+            if not validate_talent_email(email=email):
                 return Response({"message": "Invalid email for Talent"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Create the CustomUser instance with first and last name
             user = CustomUser.objects.create_user(
                 username=email,  # Use email as the username
                 email=email,
-                password=make_password(password),  # Hash the password
+                password=password,  # Hash the password
                 first_name=first_name,
                 last_name=last_name,
                 user_type=user_type
@@ -245,6 +256,7 @@ def user_signup(request,user_type):
         refresh = RefreshToken.for_user(user)
         refresh['user_type'] = user_type
         refresh['first_name'] = first_name if user_type != 'Company' else name
+        refresh['company_id'] = company if user_type == 'Recruiter' else 'name'
         refresh['last_name'] = last_name if user_type != 'Company' else ''
         refresh['user_id'] = str(user.id)
 
@@ -252,6 +264,7 @@ def user_signup(request,user_type):
 
         # Log the creation of the user
         auth_logger.debug(f'{email} created successfully as {user_type}')
+        signup_notification(request,user_email=email)
         
         # Return the response with JWT tokens
         return Response({
