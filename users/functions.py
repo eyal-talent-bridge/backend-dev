@@ -1,7 +1,11 @@
-import re,logging
+import re,logging,os
 from rest_framework.response import Response
 from django.core.exceptions import ValidationError
 from .models import *
+from urllib.parse import urlparse
+from PyPDF2 import PdfReader
+
+
 users_logger = logging.getLogger('users')
 # -------------------------------------Talents-----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -19,19 +23,32 @@ def scan_cv_for_job_requirements(cv_file, job_requirements):
         return 0
 
     try:
-        with open(cv_file.path, 'r') as file:
-            cv_content = file.read().lower()
+        # Get the file extension
+        ext = os.path.splitext(cv_file.name)[1].lower()
 
+        cv_content = ''
+        if ext == '.pdf':
+            # Handle PDF files
+            with open(cv_file.path, 'rb') as file:
+                pdf_reader = PdfReader(file)
+                for page in pdf_reader.pages:
+                    cv_content += page.extract_text().lower()
+        else:
+            # Assume it's a text file
+            with open(cv_file.path, 'r') as file:
+                cv_content = file.read().lower()
+
+        # Count matches for job requirements
         matches = 0
         for requirement in job_requirements:
             if re.search(re.escape(requirement), cv_content):
                 matches += 1
 
         return matches
+
     except Exception as e:
         users_logger.error(f"Error analyzing CV: {e}")
         return 0
-    
 
 # ----------------------------------------------------------Company--------------------------------------------------------------------------------------------------------------------
 
@@ -42,11 +59,19 @@ def validate_company_email(email):
         Response({'status': 'error', 'message': 'Invalid email or password'},False)
     return True
 
-def validate_company_website(website):
-    if not website:
+def validate_website_url(url):
+    if not url:
         return False
-    if not re.match(r'^https?://', website):
+    
+    # Check if the URL starts with http:// or https://
+    if not re.match(r'^https?://', url):
         return False
+    
+    # Use urlparse to further validate the URL structure
+    parsed_url = urlparse(url)
+    if not parsed_url.scheme or not parsed_url.netloc:
+        return False
+    
     return True
 
 
