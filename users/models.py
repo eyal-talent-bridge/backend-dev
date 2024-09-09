@@ -4,13 +4,13 @@ import uuid
 
 # Custom upload paths for various file types
 def cv_upload_path(instance, filename):
-    return f'assets/users/{instance.email}/cvs/{filename}'
+    return f'assets/users/{instance.user_id}/cvs/{filename}'
 
 def profile_picture_upload_path(instance, filename):
-    return f'assets/users/{instance.email}/profile_pictures/{filename}'
+    return f'assets/users/{instance.user_id}/profile_pictures/{filename}'
 
 def recommendation_letter_upload_path(instance, filename):
-    return f'assets/users/{instance.email}/recommendation_letters/{filename}'
+    return f'assets/users/{instance.user_id}/recommendation_letters/{filename}'
 
 # Main user model extending AbstractUser
 class CustomUser(AbstractUser):
@@ -64,14 +64,18 @@ class Talent(models.Model):
     db_table = 'Talents'
 
 # Company model extending CustomUser for specific fields
+from django.db import models
+import uuid
+
 class Company(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # UUID primary key
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='company_profile')
     name = models.CharField(max_length=200, blank=True, null=True)
     website = models.URLField(max_length=200, blank=True, null=True)
     address = models.CharField(max_length=200, blank=True, null=True)
     job_history = models.JSONField(default=dict, blank=True, null=True)
     divisions = models.JSONField(default=dict, blank=True)
-    open_jobs = models.ManyToManyField('Job', related_name='companies',blank=True)
+    open_jobs = models.ManyToManyField('Job', related_name='companies', blank=True)
 
     db_table = 'Companies'
 
@@ -80,6 +84,7 @@ class Company(models.Model):
 
 # Recruiter model extending CustomUser for specific fields
 class Recruiter(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='recruiter_profile')
     gender = models.CharField(max_length=255, blank=True, null=True)
     division = models.CharField(max_length=255, blank=True, null=True)
@@ -102,16 +107,16 @@ class Job(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='jobs', null=True)  # Job belongs to a company
-    recruiter = models.ForeignKey(Recruiter, on_delete=models.CASCADE, related_name='recruiter_jobs', null=True)  # Job is managed by a recruiter
-    description = models.TextField()
-    location = models.CharField(max_length=200)
+    recruiter = models.ForeignKey(Recruiter, on_delete=models.CASCADE, related_name='jobs')  
+    description = models.TextField(blank=True, null=True)
+    location = models.CharField(max_length=200,blank=True, null=True)
     requirements = models.JSONField(default=list, blank=True)
-    salary = models.FloatField()
+    salary = models.FloatField(blank=True, null=True)
     job_type = models.CharField(max_length=200)
     job_sitting = models.CharField(max_length=255, choices=JOB_SITTING)
-    division = models.CharField(max_length=200)
-    end_date = models.DateField() 
-    is_relevant = models.BooleanField(default=False)
+    division = models.CharField(max_length=200,blank=True, null=True)
+    end_date = models.DateField(blank=True, null=True) 
+    is_relevant = models.BooleanField(default=False,blank=True, null=True)
     relevant_talents = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
