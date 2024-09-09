@@ -1,4 +1,4 @@
-import logging, ssl, smtplib
+import logging
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -6,8 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from .serializers import *
 from .models import *
 from .functions import scan_cv_for_job_requirements
-from django.core.mail import send_mail, get_connection
-from django.conf import settings
+
 from django.shortcuts import get_object_or_404
 
 users_logger = logging.getLogger('users')
@@ -101,20 +100,16 @@ def user_detail(request, user_id):
         return Response({'message': 'User deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
-
 @api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
-def manage_cv(request):
+def manage_cv(request, talent_id):
     try:
-        # Get the authenticated user
-        user = CustomUser.objects.get(email=request.user.email)
+        # Fetch the authenticated Talent object
+        talent = Talent.objects.filter(user_id=talent_id).first()
         
-        # Check if the user is a Talent and has a Talent profile
-        try:
-            talent = Talent.objects.get(user=user)
-        except Talent.DoesNotExist:
+        if not talent:
             return Response({'message': 'Talent profile not found'}, status=status.HTTP_404_NOT_FOUND)
-
+        
         # Handle POST request for uploading CV
         if request.method == 'POST':
             if 'cv' not in request.FILES:
@@ -123,25 +118,27 @@ def manage_cv(request):
             # Upload the new CV
             talent.cv = request.FILES['cv']
             talent.save()
-            users_logger.debug(f"CV saved for {user.email}")
+
+            users_logger.debug(f"CV saved for talent_id={talent_id}")
             return Response({'message': 'CV uploaded successfully!'}, status=status.HTTP_200_OK)
         
         # Handle DELETE request for deleting CV
         elif request.method == 'DELETE':
             if talent.cv:
+                # Delete the CV file and update the model
                 talent.cv.delete()
                 talent.save()
-                users_logger.debug(f"CV deleted for {user.email}")
+                
+                users_logger.debug(f"CV deleted for talent_id={talent_id}")
                 return Response({'message': 'CV deleted successfully!'}, status=status.HTTP_200_OK)
             else:
-                users_logger.debug(f"No CV to delete for {user.email}")
+                users_logger.debug(f"No CV to delete for talent_id={talent_id}")
                 return Response({'message': 'No CV to delete'}, status=status.HTTP_404_NOT_FOUND)
 
-    except CustomUser.DoesNotExist:
-        return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
     except Exception as e:
-        users_logger.error(f"Error managing CV for {request.user.email}: {str(e)}")
-        return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        users_logger.error(f"Error managing CV for talent_id={talent_id}: {str(e)}")
+        return Response({'message': 'An error occurred while managing CV', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -194,7 +191,7 @@ def companies_details(request, user_type='Company'):
         return Response(serializer.data)
 
 
-@permission_classes([IsAuthenticated])
+
 @permission_classes([IsAuthenticated])
 @api_view(['GET'])
 def company_recruiters(request, company_id):
@@ -247,118 +244,10 @@ def talent_open_processes(request):
     }, status=200)
 
 
-# Check job requirements against talents
-@permission_classes([IsAuthenticated])
-@api_view(['GET'])
-def check_requirements(request, job_id):
-    try:
-        job = Job.objects.get(id=job_id)
-    except Job.DoesNotExist:
-        users_logger.debug("Job not found, status 404.")
-        return Response({'message': 'Job not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    talents = Talent.objects.all()
-
-    relevant_talents = []  # Collect relevant talents here
-
-    for talent in talents:
-        points = 0
-        total_characteristics = 2  # Initial: (is open to work & job sitting)
-        matched_requirements = 0
-
-        # Check if talent is open to work
-        if talent.is_open_to_work:
-            points += 1
-
-        # Check job sitting compatibility
-        if talent.job_sitting.lower() == job.job_sitting.lower():
-            points += 1
-
-        # Convert job requirements to a list of requirements if necessary
-        job_requirements = [req.strip().lower() for req in job.requirements.split(',')]
-
-        # Check skills against job requirements
-        talent_skills = [skill.strip().lower() for skill in talent.skills.split(',')]
-        for skill in talent_skills:
-            if skill in job_requirements:
-                points += 1
-                matched_requirements += 1
-
-        # Check languages against job requirements
-        talent_languages = [language.strip().lower() for language in talent.languages.split(',')]
-        for language in talent_languages:
-            if language in job_requirements:
-                points += 1
-                matched_requirements += 1
-
-        total_characteristics += len(job_requirements) + 2
-
-        # Additional check: scan CV for job requirements
-        cv_matches = scan_cv_for_job_requirements(talent.cv, job_requirements)
-
-        match_by_form = (float(points) / total_characteristics) * 100
-        match_by_cv = (float(cv_matches) / total_characteristics) * 100
-
-        # Check if the talent meets the threshold for relevance
-        if match_by_cv >= 80 or match_by_form >= 80:
-            relevant_talents.append({
-                'talent_id': talent.id,
-                'points': points,
-                'cv_matches': cv_matches,
-                'match_by_form': match_by_form,
-                'match_by_cv': match_by_cv
-            })
-
-    return Response({
-        'relevant_talents': relevant_talents
-    }, status=status.HTTP_200_OK)
 
 
-# Contact Us endpoint
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def contact_us(request):
-    first_name = request.data.get('first_name')
-    last_name = request.data.get('last_name')
-    email = request.data.get('email')
-    subject = request.data.get('subject')
-    message = request.data.get('message')
-
-    if not all([first_name, last_name, email, subject, message]):
-        return Response({'message': 'All fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    full_name = f"{first_name} {last_name}"
-    email_subject = f"Contact Us: {subject}"
-    email_message = f"From: {full_name}\nEmail: {email}\n\nMessage:\n{message}"
-
-    try:
-        if settings.DEBUG:
-            context = ssl.create_default_context()
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
-
-            connection = get_connection()
-            connection.ssl_context = context  # Apply the custom SSL context
-        else:
-            connection = get_connection()
-
-        send_mail(
-            email_subject,
-            email_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[settings.DEFAULT_FROM_EMAIL],
-            fail_silently=False,
-            connection=connection,
-        )
-        return Response({'success': 'Email sent successfully!'}, status=status.HTTP_200_OK)
-    except smtplib.SMTPException as e:
-        return Response({'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    except Exception as e:
-        return Response({'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@permission_classes([IsAuthenticated])
 @api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
 def manage_jobs(request, job_id):
     users_logger.debug(f'Request method: {request.method}, Job ID: {job_id}, User: {request.user}')
 
@@ -398,28 +287,45 @@ def manage_jobs(request, job_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def company_jobs(request, company_id):
-    # Fetch the jobs associated with the company, company_id is UUID
-    jobs = Job.objects.filter(company_id=company_id)  # This will return all jobs for the company
+    try:
+        # Check if the company exists
+        company = Company.objects.filter(user_id=company_id).first()
+        users_logger.info(f'Company found: {company_id}')
+
+        # Fetch all jobs associated with the company
+        jobs = Job.objects.filter(company=company)
+
+        if jobs.exists():
+            serializer = JobSerializer(jobs, many=True)
+            users_logger.info(f"{jobs.count()} jobs were found for company {company_id}")
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            users_logger.info(f"No jobs found for company {company_id}")
+            return Response({"message": "No jobs found for this company"}, status=status.HTTP_204_NO_CONTENT)
+
+    except Company.DoesNotExist:
+        users_logger.warning(f'Company not found: {company_id}')
+        return Response({'message': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
     
-    # Check if any jobs exist
-    if jobs.exists():
-        serializer = JobSerializer(jobs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    else:
-        return Response({"message": "No jobs found for this company"}, status=status.HTTP_404_NOT_FOUND)
+    except ValueError:
+        users_logger.error(f'Invalid UUID format: {company_id}')
+        return Response({'message': 'Invalid company ID format'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:
+        users_logger.error(f"Unexpected error: {str(e)}")
+        return Response({'message': 'An error occurred while fetching jobs'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
 
-
-
-
-@permission_classes([IsAuthenticated])
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_job(request, company_id):
     users_logger.debug(f'Create job request initiated by user: {request.user}')
 
     try:
+        company = Company.objects.filter(user_id=company_id).first()
         # Attach the company_id to the job data
         job_data = request.data.copy()
-        job_data['company'] = company_id
+        job_data['company'] = company.id
 
         serializer = JobSerializer(data=job_data)
         if serializer.is_valid():
@@ -432,4 +338,194 @@ def create_job(request, company_id):
     except Exception as e:
         users_logger.debug(f'Error during job creation: {str(e)}')
         return Response({'message': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_recruiters(request, recruiter_id):
+    users_logger.debug(f'Request method: {request.method}, Recruiter ID: {recruiter_id}, User: {request.user}')
+
+    # Try to find the recruiter
+    recruiter = Recruiter.objects.filter(id=recruiter_id).first()
+    if not recruiter:
+        users_logger.debug(f'Recruiter not found: {recruiter_id}')
+        return Response({'message': 'Recruiter not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        # Get the user and profile data
+        user_serializer = CustomUserSerializer(recruiter.user)  # Assuming Recruiter has a related CustomUser
+        recruiter_serializer = RecruiterSerializer(recruiter)  # Assuming Recruiter has a related Profile
+
+        # Combine both serialized data
+        combined_data = {**user_serializer.data, **recruiter_serializer.data}
+        users_logger.debug(f'Recruiter data retrieved: {combined_data}')
+        return Response(combined_data, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = RecruiterSerializer(recruiter, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            users_logger.debug(f'Recruiter updated successfully: {serializer.data}')
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        users_logger.debug(f'Recruiter update failed: {serializer.errors}')
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        recruiter.delete()
+        users_logger.debug(f'Recruiter deleted successfully: {recruiter_id}')
+        return Response({'message': 'Recruiter deleted successfully!'}, status=status.HTTP_200_OK)
+
+    users_logger.debug(f'Invalid request method: {request.method}')
+    return Response({'message': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+
+
+
+
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def search_talents_for_job(request, job_id):
+#     try:
+#         # Get the job object
+#         job = get_object_or_404(Job, id=job_id)
+#         company = job.company
+
+#         # If the job requirements are already a list, don't call split().
+#         if isinstance(job.requirements, list):
+#             job_requirements = [req.strip().lower() for req in job.requirements]
+#         else:
+#             # If job.requirements is a string, split it into a list
+#             job_requirements = [req.strip().lower() for req in job.requirements.split(',')]
+
+#         # Filter talents who are open to work and exclude those who have blacklisted the company
+#         talents = Talent.objects.filter(is_open_to_work=True).exclude(companies_black_list=company)
+
+#         # Total characteristics remain constant across talents
+#         total_characteristics = 2 + len(job_requirements)  # Open to work & job sitting, plus job requirements
+
+#         relevant_talents = []  # Collect relevant talents here
+
+#         for talent in talents:
+#             points = 0
+#             matched_requirements = 0
+
+#             # Talent is already filtered by `is_open_to_work=True`, so we assume they are open to work
+#             points += 1  # Increment for being open to work
+
+#             # Check job sitting compatibility
+#             if talent.job_sitting.lower() == job.job_sitting.lower():
+#                 points += 1
+
+#             # Combine skills and languages to avoid duplicating code
+#             talent_qualifications = talent.skills.split(',') + talent.languages.split(',')
+#             talent_qualifications = [qual.strip().lower() for qual in talent_qualifications]
+
+#             # Check qualifications (skills and languages) against job requirements
+#             for qualification in talent_qualifications:
+#                 if qualification in job_requirements:
+#                     points += 1
+#                     matched_requirements += 1
+
+#             # Additional check: scan CV for job requirements
+#             cv_matches = scan_cv_for_job_requirements(talent.cv, job_requirements)
+
+#             # Calculate match percentages
+#             match_by_form = (float(points) / total_characteristics) * 100
+#             match_by_cv = (float(cv_matches) / total_characteristics) * 100
+
+#             # Check if the talent meets the threshold for relevance
+#             if match_by_cv >= 80 or match_by_form >= 80:
+#                 relevant_talents.append({
+#                     'talent_id': talent.id,
+#                     'points': points,
+#                     'cv_matches': cv_matches,
+#                     'match_by_form': match_by_form,
+#                     'match_by_cv': match_by_cv
+#                 })
+
+#         # Return the list of relevant talents
+#         return Response({
+#             'relevant_talents': relevant_talents
+#         }, status=status.HTTP_200_OK)
+
+#     except Job.DoesNotExist:
+#         users_logger.error(f"Job {job_id} not found.")
+#         return Response({'message': 'Job not found'}, status=status.HTTP_404_NOT_FOUND)
     
+#     except Exception as e:
+#         users_logger.error(f"Error searching talents for job {job_id}: {str(e)}")
+#         return Response({'message': 'An error occurred while searching for talents'}, status=status.HTTP_400_BAD_REQUEST)
+   
+
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def search_talents_for_job(request, job_id):
+    try:
+        # Get the job object
+        job = get_object_or_404(Job, id=job_id)
+        company = job.company
+        # print(company.id)
+
+        # Filter talents who are open to work and exclude those who have blacklisted the company
+        talents = Talent.objects.filter(is_open_to_work=True) #add if company in black list or not
+
+        # Convert job requirements into a list
+        if isinstance(job.requirements, list):
+            job_requirements = [req.strip().lower() for req in job.requirements]
+        else:
+            # If job.requirements is a string, split it into a list
+            job_requirements = [req.strip().lower() for req in job.requirements.split(',')]
+
+        total_characteristics = 2 + len(job_requirements)  # Open to work & job sitting, plus job requirements
+        relevant_talents = []  # Collect relevant talents here
+
+        for talent in talents:
+            points = 0
+            matched_requirements = 0
+
+            points += 1  # Increment for being open to work
+
+            if talent.job_sitting.lower() == job.job_sitting.lower():
+                points += 1
+
+            talent_qualifications = talent.skills.split(',') + talent.languages.split(',')
+            talent_qualifications = [qual.strip().lower() for qual in talent_qualifications]
+
+            for qualification in talent_qualifications:
+                if qualification in job_requirements:
+                    points += 1
+                    matched_requirements += 1
+
+            cv_matches = scan_cv_for_job_requirements(talent.cv, job_requirements)
+
+            match_by_form = (float(points) / total_characteristics) * 100
+            match_by_cv = (float(cv_matches) / total_characteristics) * 100
+
+            if match_by_cv >= 80 or match_by_form >= 80:
+                relevant_talents.append({
+                    'talent_id': talent.id,
+                    'points': points,
+                    'cv_matches': cv_matches,
+                    'match_by_form': match_by_form,
+                    'match_by_cv': match_by_cv
+                })
+        print("relevant",relevant_talents)
+        # Return the manually created company data and relevant talents
+        return Response({
+            # 'company': company_data,
+            'relevant_talents': relevant_talents
+        }, status=status.HTTP_200_OK)
+
+    except Job.DoesNotExist:
+        users_logger.error(f"Job {job_id} not found.")
+        return Response({'message': 'Job not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    except Exception as e:
+        users_logger.error(f"Error searching talents for job {job_id}: {str(e)}")
+        return Response({'message': 'An error occurred while searching for talents'}, status=status.HTTP_400_BAD_REQUEST)

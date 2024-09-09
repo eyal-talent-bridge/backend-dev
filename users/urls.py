@@ -30,10 +30,11 @@ urlpatterns = [
 
     #-------------------------------------Talent--------------------------------------------------------------------------------
     path('talent/<uuid:talent_id>/open_processes/', talent_open_processes, name='talent_open_processes'),
-    path('manage-cv/', manage_cv, name='manage_cv'),
+    path('manage-cv/<uuid:talent_id>/', manage_cv, name='manage_cv'),
     path('manage_recommendation_letter/', manage_recommendation_letter, name='manage_letter'),
+    path('search_talents/<uuid:job_id>/', search_talents_for_job, name='search_talents_for_job'),
+
     #-------------------------------------recruiter--------------------------------------------------------------------------------
-    path('recruiter/check_requirements/', check_requirements, name='check_requirements'),
 
 
     #-------------------------------------company--------------------------------------------------------------------------------
@@ -41,7 +42,8 @@ urlpatterns = [
     path('companies/', companies_details, name='companies_detail'),
     path('company/job/<uuid:job_id>/', manage_jobs, name='manage_jobs'),
     path('company/<uuid:company_id>/job/', create_job, name='create_job'),
-     path('company/<uuid:company_id>/jobs/', company_jobs, name='company-jobs'),
+    path('company/<uuid:company_id>/jobs/', company_jobs, name='company-jobs'),
+    path('recruiters/<uuid:recruiter_id>/', manage_recruiters, name='company-jobs'),
 
 
 
