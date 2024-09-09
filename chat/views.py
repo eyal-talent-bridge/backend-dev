@@ -6,14 +6,9 @@ from .models import *
 from users.models import *
 from .serializers import ConversationSerializer, MessageSerializer
 from django.shortcuts import render, get_object_or_404
-from rest_framework import status
 import logging
-from django.core.mail import send_mail
-from django.conf import settings
-from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
 
-notifications_logger = logging.getLogger('notifications')
+
 
 
 # start chat with talent
@@ -86,39 +81,7 @@ def chat_room(request, room_name):
 
 
 
-# support
 
 
-notifications_logger = logging.getLogger('notifications')
 
-@permission_classes([IsAuthenticated])
-@api_view(['POST'])
-def mail_support(request):
-    try:
-        subject = request.data.get('subject')
-        message = request.data.get('message')
-        email = request.data.get('email')
-        first_name = request.data.get('firstName')
-        last_name = request.data.get('lastName')
 
-        # Basic validation
-        if not subject or not message or not email:
-            return Response({"error": "Subject, message, and email are required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Validate email format
-        try:
-            validate_email(email)
-        except ValidationError:
-            return Response({"error": "Invalid email format."}, status=status.HTTP_400_BAD_REQUEST)
-
-        recipient_email = 'Support@talent-bridge.org'
-
-        # Append the sender's email and name to the message
-        full_message = f"From: {first_name} {last_name} <{email}>\n\n{message}"
-
-        send_mail(subject, full_message, settings.DEFAULT_FROM_EMAIL, [recipient_email], fail_silently=False)
-        notifications_logger.debug(f"Email support sent successfully from {email} with subject '{subject}'.")
-        return Response({"message": f"Email sent successfully to {recipient_email}."}, status=status.HTTP_200_OK)
-    except Exception as e:
-        notifications_logger.error(f"Failed to send email from {email}. Error: {str(e)}")
-        return Response({"error": f"Failed to send email from {email}. Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

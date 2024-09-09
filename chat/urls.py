@@ -14,5 +14,4 @@ urlpatterns = [
     # URL for accessing a specific chat room
     path('chat-room/<uuid:room_name>/', chat_room, name='chat_room'),
 
-    path('support/',mail_support, name = 'mail_support')
 ]
