@@ -49,7 +49,6 @@ def signin(request):
             user_type = user.user_type
             first_name = user.first_name
             last_name = user.last_name if user_type != 'Company' else ''
-            # name = user.name if user_type == 'Company' else f"{first_name} {last_name}"
 
             # Log in the user (start the session)
             auth_login(request, user)
@@ -69,14 +68,15 @@ def signin(request):
                 else:
                     refresh['company_id'] = None
 
-            access = refresh.access_token
+            # Generate access token as a string (no need to set it manually)
+            access_token = str(refresh.access_token)
 
             auth_logger.debug(f'{username} logged in as {user_type}')
 
             # Return the JWT tokens
             return Response({
                 'refresh': str(refresh),
-                'access': str(access)
+                'access': access_token
             }, status=status.HTTP_200_OK)
 
         else:
