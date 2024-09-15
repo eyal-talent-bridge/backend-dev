@@ -300,6 +300,14 @@ LOGGING = {
             'when': 'midnight',
             'backupCount': 7,
         },
+        'cv_file': {
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/cv.log'),
+            'formatter': 'simpleRe',
+            'when': 'midnight',
+            'backupCount': 7,
+        },
         'console': {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'class': 'logging.StreamHandler',
@@ -324,6 +332,11 @@ LOGGING = {
         },
         'calendars': {
             'handlers': ['calendars_file', 'console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
+        'cv': {
+            'handlers': ['cv_file', 'console'],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
