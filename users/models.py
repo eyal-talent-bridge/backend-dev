@@ -64,9 +64,6 @@ class Talent(models.Model):
     db_table = 'Talents'
 
 # Company model extending CustomUser for specific fields
-from django.db import models
-import uuid
-
 class Company(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # UUID primary key
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='company_profile')
