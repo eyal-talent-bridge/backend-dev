@@ -7,6 +7,7 @@ from PyPDF2 import PdfReader
 
 
 users_logger = logging.getLogger('users')
+cv_logger = logging.getLogger('cv')
 # -------------------------------------Talents-----------------------------------------------------------------------------------------------------------------------------------------------
 
 def validate_talent_email(email):
@@ -17,37 +18,59 @@ def validate_talent_email(email):
     return True
 
 
-# Scan CV function
 def scan_cv_for_job_requirements(cv_file, job_requirements):
+    # Log if CV is not provided
     if not cv_file:
+        cv_logger.info("No CV is defined for this talent.")
         return 0
 
     try:
+        # Log the start of CV scanning
+        cv_logger.info(f"Scanning CV: {cv_file.name}")
+        
         # Get the file extension
         ext = os.path.splitext(cv_file.name)[1].lower()
+        cv_logger.debug(f"File extension: {ext}")
 
         cv_content = ''
+        
         if ext == '.pdf':
             # Handle PDF files
+            cv_logger.info(f"Processing PDF file: {cv_file.name}")
             with open(cv_file.path, 'rb') as file:
                 pdf_reader = PdfReader(file)
                 for page in pdf_reader.pages:
-                    cv_content += page.extract_text().lower()
+                    text = page.extract_text()
+                    if text:
+                        cv_content += text.lower()
+                    else:
+                        cv_logger.warning(f"Page {pdf_reader.pages.index(page) + 1} has no extractable text in CV: {cv_file.name}.")
         else:
             # Assume it's a text file
+            cv_logger.info(f"Processing text file: {cv_file.name}")
             with open(cv_file.path, 'r') as file:
                 cv_content = file.read().lower()
+
+        # Log the completion of file reading
+        cv_logger.debug(f"CV content extracted successfully for {cv_file.name}.")
 
         # Count matches for job requirements
         matches = 0
         for requirement in job_requirements:
-            if re.search(re.escape(requirement), cv_content):
+            if re.search(re.escape(requirement.lower()), cv_content):
                 matches += 1
+                cv_logger.debug(f"Requirement '{requirement}' matched in CV: {cv_file.name}.")
+            else:
+                cv_logger.debug(f"Requirement '{requirement}' not found in CV: {cv_file.name}.")
 
+        # Log the result of the scan
+        cv_logger.info(f"Total matches found: {matches} for {len(job_requirements)} job requirements in CV: {cv_file.name}.")
+        
         return matches
 
     except Exception as e:
-        users_logger.error(f"Error analyzing CV: {e}")
+        # Log the specific error with more context
+        users_logger.error(f"Error analyzing CV: {cv_file.name}. Error: {e}", exc_info=True)
         return 0
 
 # ----------------------------------------------------------Company--------------------------------------------------------------------------------------------------------------------
