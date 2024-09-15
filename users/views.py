@@ -6,7 +6,6 @@ from rest_framework.permissions import IsAuthenticated
 from .serializers import *
 from .models import *
 from .functions import scan_cv_for_job_requirements
-
 from django.shortcuts import get_object_or_404
 
 users_logger = logging.getLogger('users')
@@ -381,88 +380,6 @@ def manage_recruiters(request, recruiter_id):
     return Response({'message': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-
-
-
-
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def search_talents_for_job(request, job_id):
-#     try:
-#         # Get the job object
-#         job = get_object_or_404(Job, id=job_id)
-#         company = job.company
-
-#         # If the job requirements are already a list, don't call split().
-#         if isinstance(job.requirements, list):
-#             job_requirements = [req.strip().lower() for req in job.requirements]
-#         else:
-#             # If job.requirements is a string, split it into a list
-#             job_requirements = [req.strip().lower() for req in job.requirements.split(',')]
-
-#         # Filter talents who are open to work and exclude those who have blacklisted the company
-#         talents = Talent.objects.filter(is_open_to_work=True).exclude(companies_black_list=company)
-
-#         # Total characteristics remain constant across talents
-#         total_characteristics = 2 + len(job_requirements)  # Open to work & job sitting, plus job requirements
-
-#         relevant_talents = []  # Collect relevant talents here
-
-#         for talent in talents:
-#             points = 0
-#             matched_requirements = 0
-
-#             # Talent is already filtered by `is_open_to_work=True`, so we assume they are open to work
-#             points += 1  # Increment for being open to work
-
-#             # Check job sitting compatibility
-#             if talent.job_sitting.lower() == job.job_sitting.lower():
-#                 points += 1
-
-#             # Combine skills and languages to avoid duplicating code
-#             talent_qualifications = talent.skills.split(',') + talent.languages.split(',')
-#             talent_qualifications = [qual.strip().lower() for qual in talent_qualifications]
-
-#             # Check qualifications (skills and languages) against job requirements
-#             for qualification in talent_qualifications:
-#                 if qualification in job_requirements:
-#                     points += 1
-#                     matched_requirements += 1
-
-#             # Additional check: scan CV for job requirements
-#             cv_matches = scan_cv_for_job_requirements(talent.cv, job_requirements)
-
-#             # Calculate match percentages
-#             match_by_form = (float(points) / total_characteristics) * 100
-#             match_by_cv = (float(cv_matches) / total_characteristics) * 100
-
-#             # Check if the talent meets the threshold for relevance
-#             if match_by_cv >= 80 or match_by_form >= 80:
-#                 relevant_talents.append({
-#                     'talent_id': talent.id,
-#                     'points': points,
-#                     'cv_matches': cv_matches,
-#                     'match_by_form': match_by_form,
-#                     'match_by_cv': match_by_cv
-#                 })
-
-#         # Return the list of relevant talents
-#         return Response({
-#             'relevant_talents': relevant_talents
-#         }, status=status.HTTP_200_OK)
-
-#     except Job.DoesNotExist:
-#         users_logger.error(f"Job {job_id} not found.")
-#         return Response({'message': 'Job not found'}, status=status.HTTP_404_NOT_FOUND)
-    
-#     except Exception as e:
-#         users_logger.error(f"Error searching talents for job {job_id}: {str(e)}")
-#         return Response({'message': 'An error occurred while searching for talents'}, status=status.HTTP_400_BAD_REQUEST)
-   
-
-
-
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def search_talents_for_job(request, job_id):
@@ -470,44 +387,85 @@ def search_talents_for_job(request, job_id):
         # Get the job object
         job = get_object_or_404(Job, id=job_id)
         company = job.company
-        # print(company.id)
 
-        # Filter talents who are open to work and exclude those who have blacklisted the company
-        talents = Talent.objects.filter(is_open_to_work=True) #add if company in black list or not
+        # Log the job being processed
+        users_logger.info(f"Starting talent search for job: {job.title} at company: {company.name}")
 
-        # Convert job requirements into a list
+        # Log number of talents found
+        talents = Talent.objects.filter(is_open_to_work=True)
+        users_logger.info(f"{len(talents)} talents found who are open to work for job - {job.title} in {company.name}.")
+
+        # Initialize job requirements list
+        job_requirements = []
+
+        # Debug log to show the type and content of job.requirements
+        users_logger.debug(f"Job requirements type: {type(job.requirements)}, content: {job.requirements}")
+
+        # Handle different possible formats for job.requirements
         if isinstance(job.requirements, list):
+            # If job.requirements is already a list, lower-case and strip them
             job_requirements = [req.strip().lower() for req in job.requirements]
-        else:
-            # If job.requirements is a string, split it into a list
+        elif isinstance(job.requirements, str):
+            # If job.requirements is a string, split by commas and lower-case
             job_requirements = [req.strip().lower() for req in job.requirements.split(',')]
+        elif isinstance(job.requirements, dict):
+            # If job.requirements is a dictionary, extract all values and lower-case
+            for key, value in job.requirements.items():
+                users_logger.debug(f"Processing key '{key}' with value: {value}, type: {type(value)}")
+                if isinstance(value, list):
+                    job_requirements.extend([val.strip().lower() for val in value])
+                elif isinstance(value, str):
+                    job_requirements.extend([val.strip().lower() for val in value.split(',')])
+                else:
+                    users_logger.warning(f"Unexpected type in job requirements at key '{key}': {type(value)}")
+        else:
+            # Unexpected type for job requirements
+            users_logger.error(f"Unexpected type for job requirements: {type(job.requirements)}")
+            return Response({'message': 'Invalid job requirements format'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Log the extracted job requirements
+        users_logger.info(f"Extracted job requirements: {job_requirements}")
+
+        # Continue with the rest of the function logic
         total_characteristics = 2 + len(job_requirements)  # Open to work & job sitting, plus job requirements
         relevant_talents = []  # Collect relevant talents here
 
+        # Iterate through the talents
         for talent in talents:
+            if not talent.cv:
+                users_logger.warning(f"Talent {talent.id} does not have a CV.")
+                continue
+
             points = 0
             matched_requirements = 0
 
-            points += 1  # Increment for being open to work
+            # Increment points for being open to work
+            points += 1  
 
+            # Compare job sitting
             if talent.job_sitting.lower() == job.job_sitting.lower():
                 points += 1
 
+            # Combine skills and languages from talent into a list
             talent_qualifications = talent.skills.split(',') + talent.languages.split(',')
             talent_qualifications = [qual.strip().lower() for qual in talent_qualifications]
 
+            # Match talent qualifications against job requirements
             for qualification in talent_qualifications:
                 if qualification in job_requirements:
                     points += 1
                     matched_requirements += 1
 
+            # Match CV content against job requirements
             cv_matches = scan_cv_for_job_requirements(talent.cv, job_requirements)
 
             match_by_form = (float(points) / total_characteristics) * 100
             match_by_cv = (float(cv_matches) / total_characteristics) * 100
 
-            if match_by_cv >= 80 or match_by_form >= 80:
+            # Log the calculated match scores for the talent
+            users_logger.info(f"Talent {talent.id} match by form: {match_by_form}%, match by CV: {match_by_cv}%.")
+
+            if match_by_cv >= 30 or match_by_form >= 30:
                 relevant_talents.append({
                     'talent_id': talent.id,
                     'points': points,
@@ -515,10 +473,9 @@ def search_talents_for_job(request, job_id):
                     'match_by_form': match_by_form,
                     'match_by_cv': match_by_cv
                 })
-        print("relevant",relevant_talents)
-        # Return the manually created company data and relevant talents
+
+        # Return relevant talents
         return Response({
-            # 'company': company_data,
             'relevant_talents': relevant_talents
         }, status=status.HTTP_200_OK)
 
@@ -528,4 +485,4 @@ def search_talents_for_job(request, job_id):
     
     except Exception as e:
         users_logger.error(f"Error searching talents for job {job_id}: {str(e)}")
-        return Response({'message': 'An error occurred while searching for talents'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'message': f"An error occurred while searching for talents: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
