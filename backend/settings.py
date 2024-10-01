@@ -209,6 +209,7 @@ EMAIL_USE_TLS = False
 EMAIL_HOST_USER = 'no-reply@talent-bridge.org'
 EMAIL_HOST_PASSWORD = 'Npr@202020'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+SUPPORT_EMAIL = "support@talent-bridge.org"
 # EMAIL_SSL_CERTFILE = None
 # EMAIL_SSL_KEYFILE = None
 # EMAIL_TIMEOUT = None
