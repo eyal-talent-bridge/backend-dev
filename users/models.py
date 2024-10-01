@@ -50,8 +50,8 @@ class Talent(models.Model):
     field_of_interest = models.JSONField(default=dict, blank=True)
     social_links = models.JSONField(default=list, blank=True)
     companies_black_list = models.JSONField(default=list, blank=True)
-    skills = models.JSONField(default=dict, blank=True, null=True)
-    languages = models.JSONField(default=dict, blank=True, null=True)
+    skills = models.JSONField(default=list, blank=True, null=True)
+    languages = models.JSONField(default=list, blank=True, null=True)
     certificates = models.TextField(max_length=250, blank=True, null=True)
     open_processes = models.JSONField(blank=True, null=True)
     cv = models.FileField(upload_to=cv_upload_path, blank=True, null=True)
@@ -71,7 +71,7 @@ class Company(models.Model):
     website = models.URLField(max_length=200, blank=True, null=True)
     address = models.CharField(max_length=200, blank=True, null=True)
     job_history = models.JSONField(default=dict, blank=True, null=True)
-    divisions = models.JSONField(default=dict, blank=True)
+    divisions = models.JSONField(default=list, blank=True)
     open_jobs = models.ManyToManyField('Job', related_name='companies', blank=True)
 
     db_table = 'Companies'
