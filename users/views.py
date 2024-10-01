@@ -398,86 +398,86 @@ def search_talents_for_job(request, job_id):
         # Initialize job requirements list
         job_requirements = []
 
-        # Debug log to show the type and content of job.requirements
-        users_logger.debug(f"Job requirements type: {type(job.requirements)}, content: {job.requirements}")
-
-        # Handle different possible formats for job.requirements
+        # Extracting job requirements with explicit type handling
         if isinstance(job.requirements, list):
-            # If job.requirements is already a list, lower-case and strip them
-            job_requirements = [req.strip().lower() for req in job.requirements]
+            job_requirements = [req.strip().lower() for req in job.requirements if isinstance(req, str)]
         elif isinstance(job.requirements, str):
-            # If job.requirements is a string, split by commas and lower-case
             job_requirements = [req.strip().lower() for req in job.requirements.split(',')]
         elif isinstance(job.requirements, dict):
-            # If job.requirements is a dictionary, extract all values and lower-case
+            # Extract all values from the dictionary and convert them to a flattened list of strings
             for key, value in job.requirements.items():
-                users_logger.debug(f"Processing key '{key}' with value: {value}, type: {type(value)}")
-                if isinstance(value, list):
-                    job_requirements.extend([val.strip().lower() for val in value])
-                elif isinstance(value, str):
-                    job_requirements.extend([val.strip().lower() for val in value.split(',')])
+                if isinstance(value, str):
+                    job_requirements.extend([req.strip().lower() for req in value.split(',') if req])
+                elif isinstance(value, list):
+                    job_requirements.extend([req.strip().lower() for req in value if isinstance(req, str)])
                 else:
-                    users_logger.warning(f"Unexpected type in job requirements at key '{key}': {type(value)}")
+                    users_logger.warning(f"Unexpected type for requirement value under key '{key}': {type(value)}")
         else:
-            # Unexpected type for job requirements
             users_logger.error(f"Unexpected type for job requirements: {type(job.requirements)}")
             return Response({'message': 'Invalid job requirements format'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Log the extracted job requirements
+        # Log the final extracted job requirements
         users_logger.info(f"Extracted job requirements: {job_requirements}")
 
-        # Continue with the rest of the function logic
         total_characteristics = 2 + len(job_requirements)  # Open to work & job sitting, plus job requirements
-        relevant_talents = []  # Collect relevant talents here
+        relevant_talents = []  
 
-        # Iterate through the talents
         for talent in talents:
+            user = talent.user
+            if not talent.is_open_to_work:
+                users_logger.info("Talent is not open to work")
+                return Response({'message': 'Talent is not open to work'})
+            
             if not talent.cv:
                 users_logger.warning(f"Talent {talent.id} does not have a CV.")
                 continue
 
             points = 0
-            matched_requirements = 0
-
-            # Increment points for being open to work
-            points += 1  
-
-            # Compare job sitting
             if talent.job_sitting.lower() == job.job_sitting.lower():
                 points += 1
 
-            # Combine skills and languages from talent into a list
-            talent_qualifications = talent.skills.split(',') + talent.languages.split(',')
-            talent_qualifications = [qual.strip().lower() for qual in talent_qualifications]
+            # Extract and handle qualifications of the talent
+            if isinstance(talent.skills, dict):
+                talent_skills = list(talent.skills.values())
+            elif isinstance(talent.skills, list):
+                talent_skills = talent.skills
+            else:
+                talent_skills = []
 
-            # Match talent qualifications against job requirements
-            for qualification in talent_qualifications:
-                if qualification in job_requirements:
-                    points += 1
-                    matched_requirements += 1
+            if isinstance(talent.languages, dict):
+                talent_languages = list(talent.languages.values())
+            elif isinstance(talent.languages, list):
+                talent_languages = talent.languages
+            else:
+                talent_languages = []
 
-            # Match CV content against job requirements
-            cv_matches = scan_cv_for_job_requirements(talent.cv, job_requirements)
+            # Combine the lists
+            talent_qualifications = talent_skills + talent_languages
+            talent_qualifications = [qual.strip().lower() for qual in talent_qualifications if isinstance(qual, str)]
 
+            matched_requirements = sum(1 for qualification in talent_qualifications if qualification in job_requirements)
+
+            points += matched_requirements
             match_by_form = (float(points) / total_characteristics) * 100
+
+            cv_matches = scan_cv_for_job_requirements(talent.cv, job_requirements)
             match_by_cv = (float(cv_matches) / total_characteristics) * 100
 
-            # Log the calculated match scores for the talent
             users_logger.info(f"Talent {talent.id} match by form: {match_by_form}%, match by CV: {match_by_cv}%.")
 
             if match_by_cv >= 30 or match_by_form >= 30:
                 relevant_talents.append({
-                    'talent_id': talent.id,
-                    'points': points,
-                    'cv_matches': cv_matches,
-                    'match_by_form': match_by_form,
-                    'match_by_cv': match_by_cv
-                })
+                # 'talent_id': talent.id,
+                'user_id': user.id,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'points': points,
+                'cv_matches': cv_matches,
+                'match_by_form': round(match_by_form,2),
+                'match_by_cv': round(match_by_cv,2)
+})
 
-        # Return relevant talents
-        return Response({
-            'relevant_talents': relevant_talents
-        }, status=status.HTTP_200_OK)
+        return Response({'relevant_talents': relevant_talents}, status=status.HTTP_200_OK)
 
     except Job.DoesNotExist:
         users_logger.error(f"Job {job_id} not found.")
