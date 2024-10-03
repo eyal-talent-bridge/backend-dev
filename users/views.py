@@ -5,13 +5,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from .serializers import *
 from .models import *
+import datetime
 from .functions import scan_cv_for_job_requirements
 from django.shortcuts import get_object_or_404
-
 users_logger = logging.getLogger('users')
-
-
-# Actions for a specific user, based on user_type
 
 @permission_classes([IsAuthenticated])
 @api_view(['GET', 'PUT', 'DELETE'])
@@ -171,6 +168,59 @@ def manage_recommendation_letter(request):
         return Response({'message': 'Talent not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_profile_pic(request, user_id):
+    try:
+        # Try fetching the Talent object first
+        talent = Talent.objects.filter(user_id=user_id).first()
+
+        # If no Talent is found, try fetching the Recruiter object
+        if not talent:
+            recruiter = Recruiter.objects.filter(user_id=user_id).first()
+            if not recruiter:
+                users_logger.debug(f"Profile not found for user_id={user_id}")
+                return Response({'message': 'Profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Determine if the profile is for Talent or Recruiter
+        profile = talent if talent else recruiter
+        profile_type = "Talent" if talent else "Recruiter"
+
+        # Handle POST request for uploading profile picture
+        if request.method == 'POST':
+            if 'profile_picture' not in request.FILES:
+                users_logger.debug(f"No profile picture file provided for {profile_type.lower()}_id={user_id}")
+                return Response({'message': 'No profile picture file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Upload the new profile picture
+            profile.profile_picture = request.FILES['profile_picture']
+            profile.save()
+
+            users_logger.debug(f"Profile picture saved for {profile_type.lower()}_id={user_id}")
+            return Response({'message': 'Profile picture uploaded successfully!'}, status=status.HTTP_200_OK)
+
+        # Handle DELETE request for deleting profile picture
+        elif request.method == 'DELETE':
+            if profile.profile_picture:
+                # Delete the profile picture file and update the model
+                profile.profile_picture.delete()
+                profile.save()
+
+                users_logger.debug(f"Profile picture deleted for {profile_type.lower()}_id={user_id}")
+                return Response({'message': 'Profile picture deleted successfully!'}, status=status.HTTP_200_OK)
+            else:
+                users_logger.debug(f"No profile picture to delete for {profile_type.lower()}_id={user_id}")
+                return Response({'message': 'No profile picture to delete'}, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        users_logger.error(f"Error managing profile picture for user_id={user_id}: {str(e)}")
+        return Response({'message': 'An error occurred while managing the profile picture', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 @permission_classes([IsAuthenticated])
@@ -387,95 +437,92 @@ def search_talents_for_job(request, job_id):
         # Get the job object
         job = get_object_or_404(Job, id=job_id)
         company = job.company
+        
+        # Check if the job is relevant and active
+        if job.is_relevant or job.end_date < datetime.datetime.now():
+            users_logger.info(f"Starting talent search for job: {job.title} at company: {company.name}")
 
-        # Log the job being processed
-        users_logger.info(f"Starting talent search for job: {job.title} at company: {company.name}")
+            # Log the number of talents found
+            talents = Talent.objects.filter(is_open_to_work=True)
+            users_logger.info(f"{talents.count()} talents found who are open to work for job - {job.title} in {company.name}.")
 
-        # Log number of talents found
-        talents = Talent.objects.filter(is_open_to_work=True)
-        users_logger.info(f"{len(talents)} talents found who are open to work for job - {job.title} in {company.name}.")
+            # Initialize job requirements list
+            job_requirements = []
 
-        # Initialize job requirements list
-        job_requirements = []
+            # Extracting job requirements with explicit type handling
+            if isinstance(job.requirements, list):
+                job_requirements = [req.strip().lower() for req in job.requirements if isinstance(req, str)]
+            elif isinstance(job.requirements, str):
+                job_requirements = [req.strip().lower() for req in job.requirements.split(',')]
+            elif isinstance(job.requirements, dict):
+                for key, value in job.requirements.items():
+                    if isinstance(value, str):
+                        job_requirements.extend([req.strip().lower() for req in value.split(',') if req])
+                    elif isinstance(value, list):
+                        job_requirements.extend([req.strip().lower() for req in value if isinstance(req, str)])
+                    else:
+                        users_logger.warning(f"Unexpected type for requirement value under key '{key}': {type(value)}")
+            else:
+                users_logger.error(f"Unexpected type for job requirements: {type(job.requirements)}")
+                return Response({'message': 'Invalid job requirements format'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Extracting job requirements with explicit type handling
-        if isinstance(job.requirements, list):
-            job_requirements = [req.strip().lower() for req in job.requirements if isinstance(req, str)]
-        elif isinstance(job.requirements, str):
-            job_requirements = [req.strip().lower() for req in job.requirements.split(',')]
-        elif isinstance(job.requirements, dict):
-            # Extract all values from the dictionary and convert them to a flattened list of strings
-            for key, value in job.requirements.items():
-                if isinstance(value, str):
-                    job_requirements.extend([req.strip().lower() for req in value.split(',') if req])
-                elif isinstance(value, list):
-                    job_requirements.extend([req.strip().lower() for req in value if isinstance(req, str)])
-                else:
-                    users_logger.warning(f"Unexpected type for requirement value under key '{key}': {type(value)}")
+            users_logger.info(f"Extracted job requirements: {job_requirements}")
+
+            total_characteristics = 1 + len(job_requirements)  # Open to work plus job requirements
+            relevant_talents = []
+
+            for talent in talents:
+                user = talent.user
+                if not talent.is_open_to_work:
+                    users_logger.info(f"Talent {talent.id} is not open to work.")
+                    continue
+
+                if not talent.cv:
+                    users_logger.warning(f"Talent {talent.id} does not have a CV.")
+                    continue
+
+                points = 0
+                # Matching criteria: job sitting, residence, job type
+                if talent.job_sitting.lower() == job.job_sitting.lower():
+                    points += 1
+
+                if talent.residence.lower().replace(',', '') == job.location.lower().replace(',', ''):
+                    points += 1
+
+                if talent.job_type.lower() == job.job_type.lower():
+                    points += 1
+
+                # Handling talent skills and languages
+                talent_skills = talent.skills if isinstance(talent.skills, list) else list(talent.skills.values())
+                talent_languages = talent.languages if isinstance(talent.languages, list) else list(talent.languages.values())
+
+                talent_qualifications = [qual.strip().lower() for qual in talent_skills + talent_languages if isinstance(qual, str)]
+
+                matched_requirements = sum(1 for qualification in talent_qualifications if qualification in job_requirements)
+
+                points += matched_requirements
+                match_by_form = (float(points) / total_characteristics) * 100
+
+                # Assuming scan_cv_for_job_requirements is a function that scans the CV for job requirements
+                cv_matches = scan_cv_for_job_requirements(talent.cv, job_requirements)
+                match_by_cv = (float(cv_matches) / total_characteristics) * 100
+
+                users_logger.info(f"Talent {talent.id} match by form: {match_by_form}%, match by CV: {match_by_cv}%.")
+
+                # If talent matches by either form or CV criteria, add them to the relevant talents list
+                if match_by_cv >= 30 or match_by_form >= 30:
+                    relevant_talents.append({
+                        'user_id': user.id,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
+                        'points': points,
+                        'cv_matches': cv_matches,
+                        'match_by_form': round(match_by_form, 2),
+                        'match_by_cv': round(match_by_cv, 2)
+                    })
         else:
-            users_logger.error(f"Unexpected type for job requirements: {type(job.requirements)}")
-            return Response({'message': 'Invalid job requirements format'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Log the final extracted job requirements
-        users_logger.info(f"Extracted job requirements: {job_requirements}")
-
-        total_characteristics = 2 + len(job_requirements)  # Open to work & job sitting, plus job requirements
-        relevant_talents = []  
-
-        for talent in talents:
-            user = talent.user
-            if not talent.is_open_to_work:
-                users_logger.info("Talent is not open to work")
-                return Response({'message': 'Talent is not open to work'})
-            
-            if not talent.cv:
-                users_logger.warning(f"Talent {talent.id} does not have a CV.")
-                continue
-
-            points = 0
-            if talent.job_sitting.lower() == job.job_sitting.lower():
-                points += 1
-
-            # Extract and handle qualifications of the talent
-            if isinstance(talent.skills, dict):
-                talent_skills = list(talent.skills.values())
-            elif isinstance(talent.skills, list):
-                talent_skills = talent.skills
-            else:
-                talent_skills = []
-
-            if isinstance(talent.languages, dict):
-                talent_languages = list(talent.languages.values())
-            elif isinstance(talent.languages, list):
-                talent_languages = talent.languages
-            else:
-                talent_languages = []
-
-            # Combine the lists
-            talent_qualifications = talent_skills + talent_languages
-            talent_qualifications = [qual.strip().lower() for qual in talent_qualifications if isinstance(qual, str)]
-
-            matched_requirements = sum(1 for qualification in talent_qualifications if qualification in job_requirements)
-
-            points += matched_requirements
-            match_by_form = (float(points) / total_characteristics) * 100
-
-            cv_matches = scan_cv_for_job_requirements(talent.cv, job_requirements)
-            match_by_cv = (float(cv_matches) / total_characteristics) * 100
-
-            users_logger.info(f"Talent {talent.id} match by form: {match_by_form}%, match by CV: {match_by_cv}%.")
-
-            if match_by_cv >= 30 or match_by_form >= 30:
-                relevant_talents.append({
-                # 'talent_id': talent.id,
-                'user_id': user.id,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'points': points,
-                'cv_matches': cv_matches,
-                'match_by_form': round(match_by_form,2),
-                'match_by_cv': round(match_by_cv,2)
-})
+            users_logger.info("Job is not relevant.")
+            return Response({"message": "Job is not relevant"}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({'relevant_talents': relevant_talents}, status=status.HTTP_200_OK)
 
