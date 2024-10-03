@@ -44,19 +44,15 @@ def signup_notification(request,user_email):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def contact_us(request):
-    first_name = request.data.get('first_name')
-    last_name = request.data.get('last_name')
+    first_name = request.data.get('firstName')
+    last_name = request.data.get('lastName'," ") 
     email = request.data.get('email')
     subject = request.data.get('subject')
     message = request.data.get('message')
 
-    if not all([first_name, last_name, email, subject, message]):
-        return Response({'message': 'All fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    full_name = f"{first_name} {last_name}"
-    email_subject = f"Contact Us: {subject}"
-    email_message = f"From: {full_name}\nEmail: {email}\n\nMessage:\n{message}"
-    custom_send_email_notification(subject=email_subject, message=email_message, recipient_list=[settings.DEFAULT_FROM_EMAIL])
+    email_subject = {subject}
+    email_message = f"From: {first_name} {last_name}\nEmail: {email}\n\nMessage:\n{message}"
+    custom_send_email_notification(subject=email_subject, message=email_message, recipient_list=[settings.SUPPORT_EMAIL])
     notifications_logger.info(f"Contact us notification has been sent to {settings.DEFAULT_FROM_EMAIL}")
     return Response({"message": "Notification email sent."})
 
