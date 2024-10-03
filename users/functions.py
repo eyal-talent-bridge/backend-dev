@@ -25,18 +25,13 @@ def scan_cv_for_job_requirements(cv_file, job_requirements):
         return 0
 
     try:
-        # Log the start of CV scanning
         cv_logger.info(f"Scanning CV: {cv_file.name}")
         
-        # Get the file extension
         ext = os.path.splitext(cv_file.name)[1].lower()
-        cv_logger.debug(f"File extension: {ext}")
-
         cv_content = ''
-        
+
         if ext == '.pdf':
-            # Handle PDF files
-            cv_logger.info(f"Processing PDF file: {cv_file.name}")
+            # Process PDF files
             with open(cv_file.path, 'rb') as file:
                 pdf_reader = PdfReader(file)
                 for page in pdf_reader.pages:
@@ -46,30 +41,22 @@ def scan_cv_for_job_requirements(cv_file, job_requirements):
                     else:
                         cv_logger.warning(f"Page {pdf_reader.pages.index(page) + 1} has no extractable text in CV: {cv_file.name}.")
         else:
-            # Assume it's a text file
-            cv_logger.info(f"Processing text file: {cv_file.name}")
+            # Process text files
             with open(cv_file.path, 'r') as file:
                 cv_content = file.read().lower()
 
-        # Log the completion of file reading
-        cv_logger.debug(f"CV content extracted successfully for {cv_file.name}.")
-
-        # Count matches for job requirements
-        matches = 0
-        for requirement in job_requirements:
-            if re.search(re.escape(requirement.lower()), cv_content):
-                matches += 1
-                cv_logger.debug(f"Requirement '{requirement}' matched in CV: {cv_file.name}.")
-            else:
-                cv_logger.debug(f"Requirement '{requirement}' not found in CV: {cv_file.name}.")
-
-        # Log the result of the scan
-        cv_logger.info(f"Total matches found: {matches} for {len(job_requirements)} job requirements in CV: {cv_file.name}.")
+        # Convert CV content and job requirements to sets for faster matching
+        cv_words = set(cv_content.split())  # Split CV into words
+        job_requirements_set = set([req.strip().lower() for req in job_requirements if isinstance(req, str)])
         
+        # Check intersection between CV words and job requirements
+        matches = len(cv_words.intersection(job_requirements_set))
+
+        cv_logger.info(f"Total matches found: {matches} for {len(job_requirements)} job requirements in CV: {cv_file.name}.")
+
         return matches
 
     except Exception as e:
-        # Log the specific error with more context
         users_logger.error(f"Error analyzing CV: {cv_file.name}. Error: {e}", exc_info=True)
         return 0
 
@@ -167,38 +154,3 @@ def validate_phone_number(phone_number):
          Response({'status': 'error', 'message':"Enter a valid phone number."},False)
     return True
 
-
-
-
-
-def validate_password_strength(password, email=None, first_name=None, last_name=None):
-    # Minimum length
-    if len(password) < 8:
-        raise ValidationError("Password must be at least 8 characters long.")
-
-    # Check for complexity: must contain at least one uppercase letter, one lowercase letter, one digit, and one special character
-    if not re.search(r'[A-Z]', password):
-        raise ValidationError("Password must contain at least one uppercase letter (A-Z).")
-    if not re.search(r'[a-z]', password):
-        raise ValidationError("Password must contain at least one lowercase letter (a-z).")
-    if not re.search(r'\d', password):
-        raise ValidationError("Password must contain at least one digit (0-9).")
-    if not re.search(r'[!@#$%^&*()_\-+=\[\]{};:,.<>?/]', password):
-        raise ValidationError("Password must contain at least one special character (!@#$%^&*() etc.).")
-
-    # Avoid passwords that contain parts of the user's personal information
-    if email and email.split('@')[0].lower() in password.lower():
-        raise ValidationError("Password should not contain parts of your email address.")
-    if first_name and first_name.lower() in password.lower():
-        raise ValidationError("Password should not contain your first name.")
-    if last_name and last_name.lower() in password.lower():
-        raise ValidationError("Password should not contain your last name.")
-
-    # Avoid common passwords or sequential characters
-    common_passwords = ['password', '123456', '123456789', 'qwerty', 'abc123', 'password123']
-    if password.lower() in common_passwords:
-        raise ValidationError("Password is too common.")
-    if re.search(r'(.)\1{2,}', password) or re.search(r'12345', password):
-        raise ValidationError("Password must not contain sequences or repeated characters.")
-
-    return True
