@@ -31,6 +31,7 @@ urlpatterns = [
     #-------------------------------------Talent--------------------------------------------------------------------------------
     path('talent/<uuid:talent_id>/open_processes/', talent_open_processes, name='talent_open_processes'),
     path('manage-cv/<uuid:talent_id>/', manage_cv, name='manage_cv'),
+    path('manage-profile-pic/<uuid:user_id>/', manage_profile_pic, name='manage_profile_pic'),
     path('manage_recommendation_letter/', manage_recommendation_letter, name='manage_letter'),
     path('search_talents/<uuid:job_id>/', search_talents_for_job, name='search_talents_for_job'),
 
@@ -51,6 +52,7 @@ urlpatterns = [
     path('user/<uuid:user_id>/', user_detail, name='user_detail'),
     
 
-
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
