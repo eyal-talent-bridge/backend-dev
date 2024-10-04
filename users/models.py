@@ -89,7 +89,8 @@ class Recruiter(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='company_recruiters', null=True, blank=True)
     my_searchings = models.JSONField(default=dict, blank=True, null=True)
     working_time = models.JSONField(default=dict, blank=True, null=True)
-    
+    profile_picture = models.ImageField(upload_to=recommendation_letter_upload_path, blank=True, null=True)
+
     db_table = 'Recruiters'
 
 # Job model with proper ForeignKey references
