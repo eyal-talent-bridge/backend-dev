@@ -146,9 +146,7 @@ def user_signup(request,user_type):
             if not validate_phone_number(phone_number):
                 return Response({'error': 'Invalid company phone number'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # password validation
-            # if not validate_password(password):
-            #     return Response({'error': 'Invalid password'}, status=status.HTTP_400_BAD_REQUEST)
+
 
             # Create the CustomUser instance 
             user = CustomUser.objects.create_user(
