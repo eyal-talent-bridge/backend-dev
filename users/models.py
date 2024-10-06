@@ -26,6 +26,7 @@ class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     accept_terms = models.BooleanField(default=True)
     license_type = models.CharField(max_length=200, blank=True, null=True)
+    newsletter = models.BooleanField(default=False,blank=True, null=True)
 
     class Meta:
         verbose_name = 'Custom User'
@@ -48,7 +49,7 @@ class Talent(models.Model):
     job_type = models.CharField(max_length=255, blank=True, null=True)
     job_sitting = models.CharField(max_length=255, blank=True, null=True)
     field_of_interest = models.JSONField(default=dict, blank=True)
-    social_links = models.JSONField(default=list, blank=True)
+    social_links = models.JSONField(default=dict, blank=True)
     companies_black_list = models.JSONField(default=list, blank=True)
     skills = models.JSONField(default=list, blank=True, null=True)
     languages = models.JSONField(default=list, blank=True, null=True)
@@ -89,7 +90,7 @@ class Recruiter(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='company_recruiters', null=True, blank=True)
     my_searchings = models.JSONField(default=dict, blank=True, null=True)
     working_time = models.JSONField(default=dict, blank=True, null=True)
-    profile_picture = models.ImageField(upload_to=recommendation_letter_upload_path, blank=True, null=True)
+    profile_picture = models.ImageField(upload_to=profile_picture_upload_path, blank=True, null=True)
 
     db_table = 'Recruiters'
 
