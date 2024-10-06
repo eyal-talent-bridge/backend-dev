@@ -12,7 +12,7 @@ from django.core.mail import send_mail,BadHeaderError
 from django.conf import settings
 from social_django.utils import psa
 from django.contrib.auth.tokens import default_token_generator
-from .functions import *
+from .utils import *
 from uuid import UUID
 from django.contrib.auth.hashers import check_password
 from notifications.views import *
@@ -176,7 +176,7 @@ def user_signup(request,user_type):
             position = str(request.data.get('position')).capitalize()
 
             try:
-                company_id = UUID(request.data.get('company'))
+                company_id = (request.data.get('company'))
                 auth_logger.info(f"Company ID (UUID): {company_id}")  # Debugging line to auth_logger.info the company_id
             except ValueError:
                 return Response({'message': 'Invalid company ID'}, status=status.HTTP_400_BAD_REQUEST)
@@ -277,7 +277,7 @@ def user_signup(request,user_type):
     
     except Exception as e:
         auth_logger.error(f"Error creating user: {e}")
-        return Response({"message": "An error occurred while creating the user."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"message": f"An error occurred while creating the user, {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
