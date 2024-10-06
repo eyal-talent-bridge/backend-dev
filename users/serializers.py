@@ -130,26 +130,7 @@ class RecruiterSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-# Serializer for file uploads with size and extension validation
-class UserFileUploadSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ['cv', 'profile_picture', 'recommendation_letter']
-    
-    def validate_cv(self, value):
-        validate_file_extension(value, ['.pdf', '.doc', '.docx'])
-        validate_file_size(value, 5)  # Max size 5MB
-        return value
 
-    def validate_profile_picture(self, value):
-        validate_file_extension(value, ['.jpg', '.jpeg', '.png', '.gif'])
-        validate_file_size(value, 2)  # Max size 2MB
-        return value
-
-    def validate_recommendation_letter(self, value):
-        validate_file_extension(value, ['.pdf', '.doc', '.docx'])
-        validate_file_size(value, 5)  # Max size 5MB
-        return value
 
 # Job serializer with custom date format handling
 class JobSerializer(serializers.ModelSerializer):
