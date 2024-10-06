@@ -6,7 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from .serializers import *
 from .models import *
 import datetime
-from .functions import scan_cv_for_job_requirements
+from .utils import scan_cv_for_job_requirements
+from notifications.utils import appear_on_job_search_notification
 from django.shortcuts import get_object_or_404
 users_logger = logging.getLogger('users')
 
@@ -54,13 +55,17 @@ def user_detail(request, user_id):
         # Return the combined data
         return Response(combined_data)
 
+    # Handle PUT request for updating CustomUser and profile data
     elif request.method == 'PUT':
-    # Separate user data and profile data
-        user_data = request.data.pop('user', None)  # Pop user-related fields if present
+        # Extract CustomUser-related fields from the request data
+        user_data = {
+            key: value for key, value in request.data.items()
+            if key in ['id','first_name', 'last_name', 'email', 'phone_number','newsletter','accept_terms','license_type']  # Add other CustomUser fields if needed
+        }
 
         # Update profile fields using the profile serializer
         profile_serializer = serializer_class(profile, data=request.data, partial=True)  # Allow partial updates
-        
+
         # Validate the profile data first
         if profile_serializer.is_valid():
             # If user data is present, update the CustomUser fields
@@ -91,10 +96,9 @@ def user_detail(request, user_id):
 
     # Handle DELETE request
     elif request.method == 'DELETE':
-        user.delete()  # This deletes both the CustomUser profile 
-        users_logger.debug(f"User {user.email} deleted successfully.")
+        user.delete()
         return Response({'message': 'User deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-
+    
 
 @api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -430,6 +434,8 @@ def manage_recruiters(request, recruiter_id):
     return Response({'message': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def search_talents_for_job(request, job_id):
@@ -439,11 +445,12 @@ def search_talents_for_job(request, job_id):
         company = job.company
         
         # Check if the job is relevant and active
-        if job.is_relevant or job.end_date < datetime.datetime.now():
+        if job.is_relevant and job.end_date >= datetime.datetime.now().date() :
             users_logger.info(f"Starting talent search for job: {job.title} at company: {company.name}")
 
             # Log the number of talents found
             talents = Talent.objects.filter(is_open_to_work=True)
+            # .exclude(companies_black_list__contains=job.company)
             users_logger.info(f"{talents.count()} talents found who are open to work for job - {job.title} in {company.name}.")
 
             # Initialize job requirements list
@@ -513,6 +520,7 @@ def search_talents_for_job(request, job_id):
                 if match_by_cv >= 30 or match_by_form >= 30:
                     relevant_talents.append({
                         'user_id': user.id,
+                        'username': user.email,
                         'first_name': user.first_name,
                         'last_name': user.last_name,
                         'points': points,
@@ -520,6 +528,10 @@ def search_talents_for_job(request, job_id):
                         'match_by_form': round(match_by_form, 2),
                         'match_by_cv': round(match_by_cv, 2)
                     })
+
+            # Call notification function only after all relevant talents are collected
+            appear_on_job_search_notification(request, relevant_talents, job_id)
+
         else:
             users_logger.info("Job is not relevant.")
             return Response({"message": "Job is not relevant"}, status=status.HTTP_400_BAD_REQUEST)
