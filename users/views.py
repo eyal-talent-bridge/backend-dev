@@ -248,13 +248,15 @@ def companies_details(request, user_type='Company'):
 @permission_classes([IsAuthenticated])
 @api_view(['GET'])
 def company_recruiters(request, company_id):
-    try:
-        # Fetch the company using the provided company_id
-        company = Company.objects.filter(user_id=company_id).first()
-        users_logger.debug("Company found successfully.")
-    except Company.DoesNotExist:
+    print(f"Received company_id: {company_id}")
+    # Fetch the company using the provided company_id
+    company = Company.objects.filter(user_id=company_id).first()
+    
+    if not company:
         users_logger.debug(f'Company with ID {company_id} not found.')
         return Response({'message': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    users_logger.debug("Company found successfully.")
 
     # Fetch recruiters associated with the company
     recruiters = Recruiter.objects.filter(company=company)
@@ -369,6 +371,42 @@ def company_jobs(request, company_id):
         return Response({'message': 'An error occurred while fetching jobs'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 
+# recruiter jobs
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def recruiter_jobs(request, recruiter_id):
+    try:
+        # Check if the company exists
+        recruiter = Recruiter.objects.filter(user_id=recruiter_id).first()
+        users_logger.info(f'recruiter found: {recruiter_id}')
+
+        # Fetch all jobs associated with the recruiter
+        jobs = Job.objects.filter(recruiter=recruiter)
+
+        if jobs.exists():
+            serializer = JobSerializer(jobs, many=True)
+            users_logger.info(f"{jobs.count()} jobs were found for recruiter {recruiter_id}")
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            users_logger.info(f"No jobs found for recruiter {recruiter_id}")
+            return Response({"message": "No jobs found for this recruiter"}, status=status.HTTP_204_NO_CONTENT)
+
+    except Recruiter.DoesNotExist:
+        users_logger.warning(f'Recruiter not found: {recruiter_id}')
+        return Response({'message': 'recruiter not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    except ValueError:
+        users_logger.error(f'Invalid UUID format: {recruiter_id}')
+        return Response({'message': 'Invalid recruiter ID format'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:
+        users_logger.error(f"Unexpected error: {str(e)}")
+        return Response({'message': 'An error occurred while fetching jobs'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_job(request, company_id):
@@ -395,28 +433,24 @@ def create_job(request, company_id):
 
 
 
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
 def manage_recruiters(request, recruiter_id):
     users_logger.debug(f'Request method: {request.method}, Recruiter ID: {recruiter_id}, User: {request.user}')
 
-    # Try to find the recruiter
-    recruiter = Recruiter.objects.filter(id=recruiter_id).first()
-    if not recruiter:
-        users_logger.debug(f'Recruiter not found: {recruiter_id}')
-        return Response({'message': 'Recruiter not found'}, status=status.HTTP_404_NOT_FOUND)
+    # Find the recruiter or return 404
+    recruiter = get_object_or_404(Recruiter, id=recruiter_id)
 
     if request.method == 'GET':
-        # Get the user and profile data
-        user_serializer = CustomUserSerializer(recruiter.user)  # Assuming Recruiter has a related CustomUser
-        recruiter_serializer = RecruiterSerializer(recruiter)  # Assuming Recruiter has a related Profile
+        # Serialize both user and recruiter data
+        user_serializer = CustomUserSerializer(recruiter.user)
+        recruiter_serializer = RecruiterSerializer(recruiter)
 
-        # Combine both serialized data
+        # Combine serialized data
         combined_data = {**user_serializer.data, **recruiter_serializer.data}
         users_logger.debug(f'Recruiter data retrieved: {combined_data}')
         return Response(combined_data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
+        # Update recruiter data
         serializer = RecruiterSerializer(recruiter, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -426,13 +460,13 @@ def manage_recruiters(request, recruiter_id):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
+        # Delete recruiter
         recruiter.delete()
         users_logger.debug(f'Recruiter deleted successfully: {recruiter_id}')
         return Response({'message': 'Recruiter deleted successfully!'}, status=status.HTTP_200_OK)
 
     users_logger.debug(f'Invalid request method: {request.method}')
     return Response({'message': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
 
 
 
@@ -449,7 +483,7 @@ def search_talents_for_job(request, job_id):
             users_logger.info(f"Starting talent search for job: {job.title} at company: {company.name}")
 
             # Log the number of talents found
-            talents = Talent.objects.filter(is_open_to_work=True)
+            talents = Talent.objects.filter(is_open_to_work=True,)
             # .exclude(companies_black_list__contains=job.company)
             users_logger.info(f"{talents.count()} talents found who are open to work for job - {job.title} in {company.name}.")
 
@@ -528,6 +562,7 @@ def search_talents_for_job(request, job_id):
                         'match_by_form': round(match_by_form, 2),
                         'match_by_cv': round(match_by_cv, 2)
                     })
+
 
             # Call notification function only after all relevant talents are collected
             appear_on_job_search_notification(request, relevant_talents, job_id)
