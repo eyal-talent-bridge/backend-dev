@@ -1,4 +1,5 @@
 
+import datetime 
 from .tasks import custom_send_email_notification
 import logging
 from django.conf import settings
@@ -6,6 +7,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from backend.settings import FRONTEND_URL
+from rest_framework import status
+from .models import CompanyNotification
+from .serializers import CompanyNotificationSerializer
+from users.models import Recruiter,Company
+
 
 notifications_logger = logging.getLogger('notifications')
 
@@ -96,3 +102,83 @@ def send_newsletter(request):
     except Exception as e:
         notifications_logger.error(f"Failed to send newsletter: {str(e)}")
         return Response({"error": "An error occurred while sending the newsletter."}, status=500)
+    
+
+
+
+@api_view(['POST', 'GET'])
+@permission_classes([IsAuthenticated])
+def manage_company_notifications(request, company_id):
+    if request.method == 'POST':
+        notifications_logger.info(f"Creating notifications for company_id {company_id}")
+
+        recipients = request.data.get('recipients')  # Recipients can be "all_recruiters" or a list of divisions
+        subject = request.data.get('subject')
+        message = request.data.get('message')
+        end_date = request.data.get('end_date', datetime.datetime.now() + datetime.timedelta(days=7))
+
+        if not subject or not message:
+            notifications_logger.error("Subject or message missing in the request")
+            return Response({'error': 'Subject and message are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        notifications = []
+
+        try:
+            company = Company.objects.filter(user_id=company_id).first()
+            if not company:
+                notifications_logger.error(f"Company not found for user_id {company_id}")
+                return Response({'error': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            if recipients == "all_recruiters":
+                notifications_logger.info(f"Sending notifications to all recruiters of company {company_id}")
+                recruiters = Recruiter.objects.filter(company=company)
+            else:
+                if not isinstance(recipients, list):
+                    return Response({'error': 'Recipients must be a list of divisions or "all_recruiters"'}, status=status.HTTP_400_BAD_REQUEST)
+
+                divisions = recipients
+                notifications_logger.info(f"Sending notifications to divisions {divisions} of company {company_id}")
+                recruiters = Recruiter.objects.filter(company=company, division__in=divisions)
+
+                if not recruiters.exists():
+                    notifications_logger.warning(f"No recruiters found for divisions {divisions} in company {company_id}")
+                    return Response({'error': f'No recruiters found for divisions {divisions}'}, status=status.HTTP_404_NOT_FOUND)
+
+            for recruiter in recruiters:
+                try:
+                    notification = CompanyNotification.objects.create(
+                        recipient=recruiter,  # Use the recruiter instance here, not recruiter.user
+                        subject=subject,
+                        message=message,
+                        end_date=end_date
+                    )
+                    notifications.append(notification)
+                except Exception as e:
+                    notifications_logger.error(f"Failed to create notification for recruiter {recruiter.id}: {str(e)}")
+
+            serializer = CompanyNotificationSerializer(notifications, many=True)
+            notifications_logger.info(f"Successfully created {len(notifications)} notifications")
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            notifications_logger.error(f"Error creating notifications: {str(e)}")
+            return Response({'error': 'An error occurred while creating notifications'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    elif request.method == 'GET':
+        notifications_logger.info(f"Fetching notifications for company_id {company_id}")
+
+        try:
+            # Fetch the company based on the company_id
+            company = Company.objects.get(user_id=company_id)
+            # Get recruiters for this company
+            recruiters = Recruiter.objects.filter(company=company)
+            # Fetch notifications for these recruiters
+            notifications = CompanyNotification.objects.filter(recipient__in=recruiters)
+            
+            serializer = CompanyNotificationSerializer(notifications, many=True)
+            notifications_logger.info(f"Fetched {len(notifications)} notifications for company {company_id}")
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            notifications_logger.error(f"Error fetching notifications for company {company_id}: {str(e)}")
+            return Response({'error': 'An error occurred while fetching notifications'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
