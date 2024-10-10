@@ -25,6 +25,7 @@ click-repl==0.3.0
 colorlog==6.8.2
 comm==0.2.2
 constantly==23.10.4
+cron-descriptor==1.4.5
 cryptography==42.0.5
 daphne==4.1.2
 DateTime==5.5
@@ -35,11 +36,13 @@ Django==4.2.7
 django-admin-interface==0.28.8
 django-admin-tools==0.9.3
 django-allauth==0.62.1
+django-celery-beat==2.7.0
 django-colorfield==0.11.0
 django-cors-headers==4.3.1
 django-debug-toolbar==4.3.0
 django-excel==0.0.10
 django-jazzmin==3.0.0
+django-timezone-field==7.0
 djangorestframework==3.15.1
 djangorestframework-simplejwt==5.2.0
 drf-yasg==1.21.7
@@ -109,6 +112,7 @@ pyOpenSSL==24.2.1
 pyparsing==3.1.2
 PyPDF2==3.0.1
 pytest==7.4.4
+python-crontab==3.2.0
 python-dateutil==2.8.2
 python-dotenv==1.0.1
 python-engineio==4.9.1
