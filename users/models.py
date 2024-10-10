@@ -89,6 +89,7 @@ class Recruiter(models.Model):
     position = models.CharField(max_length=255, blank=True, null=True)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='company_recruiters', null=True, blank=True)
     my_searchings = models.JSONField(default=dict, blank=True, null=True)
+    social_links = models.JSONField(default=dict, blank=True)
     working_time = models.JSONField(default=dict, blank=True, null=True)
     profile_picture = models.ImageField(upload_to=profile_picture_upload_path, blank=True, null=True)
 
@@ -105,7 +106,7 @@ class Job(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='jobs', null=True)  # Job belongs to a company
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='jobs', null=True)  
     recruiter = models.ForeignKey(Recruiter, on_delete=models.CASCADE, related_name='jobs')  
     description = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=200,blank=True, null=True)
