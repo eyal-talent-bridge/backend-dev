@@ -133,10 +133,28 @@ class RecruiterSerializer(serializers.ModelSerializer):
 
 
 # Job serializer with custom date format handling
+from rest_framework import serializers
+from .models import Job
+
 class JobSerializer(serializers.ModelSerializer):
+    # Format for the 'end_date' field
     end_date = serializers.DateField(format="%d-%m-%Y", input_formats=["%d-%m-%Y", "%Y-%m-%d"])
 
+    def update(self, instance, validated_data):
+        # If 'user' field is part of the data, handle nested updates
+        user_data = validated_data.pop('user', None)
+        if user_data:
+            user = instance.user  # Assuming 'user' is a ForeignKey or OneToOneField
+            for key, value in user_data.items():
+                setattr(user, key, value)
+            user.save()
 
+        # Update other job fields
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        instance.save()
+
+        return instance
 
     class Meta:
         model = Job
