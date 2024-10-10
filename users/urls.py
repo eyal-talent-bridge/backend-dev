@@ -36,7 +36,7 @@ urlpatterns = [
     path('search_talents/<uuid:job_id>/', search_talents_for_job, name='search_talents_for_job'),
 
     #-------------------------------------recruiter--------------------------------------------------------------------------------
-
+    path('recruiter/<uuid:recruiter_id>/jobs/', recruiter_jobs, name='recruiter-jobs'),
 
     #-------------------------------------company--------------------------------------------------------------------------------
     path('company/<uuid:company_id>/recruiters/', company_recruiters, name='company_recruiters'),
