@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from .models import *
 from urllib.parse import urlparse
 from PyPDF2 import PdfReader
+import requests
 
 
 users_logger = logging.getLogger('users')
@@ -60,6 +61,47 @@ def scan_cv_for_job_requirements(cv_file, job_requirements):
         users_logger.error(f"Error analyzing CV: {cv_file.name}. Error: {e}", exc_info=True)
         return 0
 
+
+
+
+# calculate distance btween job to talent
+    
+# API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY'
+
+# # Function to get coordinates (latitude and longitude) of a location
+# def get_coordinates(location):
+#     url = f"https://maps.googleapis.com/maps/api/geocode/json?address={location}&key={API_KEY}"
+#     response = requests.get(url)
+#     data = response.json()
+#     if data['status'] == 'OK':
+#         coordinates = data['results'][0]['geometry']['location']
+#         return coordinates['lat'], coordinates['lng']
+#     else:
+#         raise ValueError(f"Geocoding failed for location: {location}")
+
+# # Function to get the distance between two coordinates
+# def get_distance(job_place, birth_place):
+#     job_lat, job_lng = get_coordinates(job_place)
+#     birth_lat, birth_lng = get_coordinates(birth_place)
+    
+#     url = f"https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins={job_lat},{job_lng}&destinations={birth_lat},{birth_lng}&key={API_KEY}"
+    
+#     response = requests.get(url)
+#     data = response.json()
+    
+#     if data['status'] == 'OK':
+#         distance = data['rows'][0]['elements'][0]['distance']['text']  # Get distance text (in km or miles)
+#         duration = data['rows'][0]['elements'][0]['duration']['text']  # Get duration text
+#         return distance, duration
+#     else:
+#         raise ValueError("Distance calculation failed")
+
+# # Example usage
+# job_place = "Berlin, Germany"
+# birth_place = "Paris, France"
+
+# distance, duration = get_distance(job_place, birth_place)
+# print(f"The distance between {job_place} and {birth_place} is {distance}, and it takes approximately {duration}.")
 # ----------------------------------------------------------Company--------------------------------------------------------------------------------------------------------------------
 
 def validate_company_email(email):
