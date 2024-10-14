@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os,ssl
-
+from celery.schedules import crontab
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'notifications',
     'calendars',
     'corsheaders',
+    'django_celery_beat'
 ]
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
@@ -189,6 +190,13 @@ CELERY_TIMEZONE = 'Asia/Jerusalem'
 
 # For periodic tasks, if needed
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_BEAT_SCHEDULE = {
+    'check_inactive_users': {
+        'task': 'notifications.tasks.check_inactive_users_and_send_reminders',
+        'schedule': crontab(hour=6, minute=35),  # Runs every day at midnight
+    },
+}
+
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.hostinger.com'
