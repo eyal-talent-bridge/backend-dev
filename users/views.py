@@ -7,7 +7,7 @@ from .serializers import *
 from .models import *
 import datetime
 from .utils import scan_cv_for_job_requirements
-from notifications.utils import appear_on_job_search_notification
+# from notifications.utils import appear_on_job_search_notification
 from django.shortcuts import get_object_or_404
 users_logger = logging.getLogger('users')
 
@@ -145,10 +145,11 @@ def manage_cv(request, talent_id):
 
 @api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
-def manage_recommendation_letter(request):
+def manage_recommendation_letter(request,user_id):
     try:
         # Get the authenticated user
-        user = CustomUser.objects.get(email=request.user.email)
+        user = CustomUser.objects.filter(id=user_id).first()
+        print(user.first_name)
         
         # Check if the user is a Talent and has a Talent profile
         try:
@@ -565,7 +566,7 @@ def search_talents_for_job(request, job_id):
 
 
             # Call notification function only after all relevant talents are collected
-            appear_on_job_search_notification(request, relevant_talents, job_id)
+            # appear_on_job_search_notification(request, relevant_talents, job_id)
 
         else:
             users_logger.info("Job is not relevant.")

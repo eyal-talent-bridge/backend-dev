@@ -48,7 +48,6 @@ INSTALLED_APPS = [
     'drf_yasg',
     'channels',
     'social_django',
-    'notifications',
     'calendars',
     'corsheaders',
     'django_celery_beat'
