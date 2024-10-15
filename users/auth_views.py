@@ -13,9 +13,8 @@ from django.conf import settings
 from social_django.utils import psa
 from django.contrib.auth.tokens import default_token_generator
 from .utils import *
-from uuid import UUID
 from django.contrib.auth.hashers import check_password
-# from notifications.views import *
+
 
 
 auth_logger = logging.getLogger('auth')
@@ -262,7 +261,7 @@ def user_signup(request,user_type):
 
         # Log the creation of the user
         auth_logger.debug(f'{email} created successfully as {user_type}')
-        # signup_notification(request,user_email=email)
+        trigger_signup_notification(email)
         
         # Return the response with JWT tokens
         return Response({
