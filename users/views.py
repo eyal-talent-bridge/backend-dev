@@ -1,13 +1,11 @@
-import logging
+import logging,datetime
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from .serializers import *
 from .models import *
-import datetime
-from .utils import scan_cv_for_job_requirements
-# from notifications.utils import appear_on_job_search_notification
+from .utils import *
 from django.shortcuts import get_object_or_404
 users_logger = logging.getLogger('users')
 
@@ -566,7 +564,7 @@ def search_talents_for_job(request, job_id):
 
 
             # Call notification function only after all relevant talents are collected
-            # appear_on_job_search_notification(request, relevant_talents, job_id)
+            trigger_appear_on_job_search_notification(request, relevant_talents, job_id)
 
         else:
             users_logger.info("Job is not relevant.")
