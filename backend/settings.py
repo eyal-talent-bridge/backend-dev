@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os,ssl
-from celery.schedules import crontab
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -50,7 +49,7 @@ INSTALLED_APPS = [
     'social_django',
     'calendars',
     'corsheaders',
-    'django_celery_beat'
+    
 ]
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
@@ -177,39 +176,6 @@ SIMPLE_JWT = {
 
 AUTH_USER_MODEL = 'users.CustomUser'
 
-
-
-# Celery settings
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Asia/Jerusalem'
-
-# For periodic tasks, if needed
-CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
-CELERY_BEAT_SCHEDULE = {
-    'check_inactive_users': {
-        'task': 'notifications.tasks.check_inactive_users_and_send_reminders',
-        'schedule': crontab(hour=6, minute=35),  # Runs every day at midnight
-    },
-}
-
-
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.hostinger.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = False
-EMAIL_HOST_USER = 'no-reply@talent-bridge.org'
-EMAIL_HOST_PASSWORD = 'Npr@202020'
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-SUPPORT_EMAIL = "support@talent-bridge.org"
-# EMAIL_SSL_CERTFILE = None
-# EMAIL_SSL_KEYFILE = None
-# EMAIL_TIMEOUT = None
-# EMAIL_SSL_CONTEXT = ssl._create_unverified_context()
-
 FRONTEND_URL = 'http://localhost:5173'
 
 AUTHENTICATION_BACKENDS = [
@@ -256,14 +222,6 @@ LOGGING = {
         }
     },
     'handlers': {
-        'notifications_file': {
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/notifications.log'),
-            'formatter': 'simpleRe',
-            'when': 'midnight',
-            'backupCount': 7,
-        },
         'users_file': {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'class': 'logging.handlers.TimedRotatingFileHandler',
@@ -318,11 +276,6 @@ LOGGING = {
         },
         'auth': {
             'handlers': ['auth_file', 'console'],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'notifications': {
-            'handlers': ['notifications_file', 'console'],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
