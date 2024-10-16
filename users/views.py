@@ -30,8 +30,10 @@ def user_detail(request, user_id):
             profile = Recruiter.objects.get(user=user)
             serializer_class = RecruiterSerializer
         else:
+            users_logger.error(f"Invalid user type: {user_type}")
             return Response({'message': 'Invalid user type'}, status=status.HTTP_400_BAD_REQUEST)
     except (Talent.DoesNotExist, Company.DoesNotExist, Recruiter.DoesNotExist):
+        users_logger.error(f"Profile not found for user: {user.email}")
         return Response({'message': 'Profile not found'}, status=status.HTTP_404_NOT_FOUND)
 
     # Handle GET request
@@ -51,7 +53,7 @@ def user_detail(request, user_id):
         users_logger.debug(f"User {user.email} has been found successfully.")
         
         # Return the combined data
-        return Response(combined_data)
+        return Response(combined_data,status=status.HTTP_200_OK)
 
     # Handle PUT request for updating CustomUser and profile data
     elif request.method == 'PUT':
@@ -94,9 +96,10 @@ def user_detail(request, user_id):
 
     # Handle DELETE request
     elif request.method == 'DELETE':
+        user_info = {'email': user.email, 'user_type': user.user_type}
         user.delete()
-        return Response({'message': 'User deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-    
+        users_logger.debug(f"User {user.email} deleted successfully.")
+        return Response({'message': 'User deleted successfully', 'user_info': user_info}, status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -552,7 +555,7 @@ def search_talents_for_job(request, job_id):
                 # If talent matches by either form or CV criteria, add them to the relevant talents list
                 if match_by_cv >= 30 or match_by_form >= 30:
                     relevant_talents.append({
-                        'user_id': user.id,
+                        'user_id': str(user.id),
                         'username': user.email,
                         'first_name': user.first_name,
                         'last_name': user.last_name,
@@ -564,7 +567,7 @@ def search_talents_for_job(request, job_id):
 
 
             # Call notification function only after all relevant talents are collected
-            trigger_appear_on_job_search_notification(request, relevant_talents, job_id)
+            trigger_appear_on_job_search_notification(relevant_talents, job_id)
 
         else:
             users_logger.info("Job is not relevant.")
