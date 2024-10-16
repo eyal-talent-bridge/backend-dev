@@ -252,22 +252,23 @@ def trigger_inactive_user_check(user_email):
 def trigger_appear_on_job_search_notification(relevant_talents, job_id):
     url = f"{NOTIFICATION_SERVICE_URL}trigger-appear-on-job-search-notification/"
 
-    data = {'relevant_talents': relevant_talents,}
-    for talent in relevant_talents:
-        try:
-            # Log the start of the request
-            users_logger.info(f"Attempting to send inactive notification to {talent}")
+    data = {'relevant_talents': relevant_talents, 'job_id': str(job_id)}  # Include job_id as well
 
-            # Send the POST request to the notifications service
-            response = requests.post(url, json=data)
-            if response.status_code == 200:
-                users_logger.info(f"Notification email sent successfully to {talent}")
-                return "Notification email sent successfully."
-            else:
-                users_logger.error(f"Failed to send notification email to {talent}. Status code: {response.status_code}")
-                return f"Failed to send notification email. Status code: {response.status_code}"
+    try:
+        # Log the start of the request
+        users_logger.info(f"Attempting to send notification for job ID {job_id} to relevant talents")
 
-        except requests.exceptions.RequestException as e:
-            # Log any request-related exceptions
-            users_logger.error(f"Error occurred while sending inactive notification to {talent}: {str(e)}")
-            return f"Failed to send notification email due to an error: {str(e)}"
+        # Send the POST request to the notifications service
+        response = requests.post(url, json=data)
+
+        if response.status_code == 200:
+            users_logger.info(f"Notification emails sent successfully for job ID {job_id}")
+            return "Notification emails sent successfully."
+        else:
+            users_logger.error(f"Failed to send notification emails for job ID {job_id}. Status code: {response.status_code}")
+            return f"Failed to send notification emails. Status code: {response.status_code}"
+
+    except requests.exceptions.RequestException as e:
+        # Log any request-related exceptions
+        users_logger.error(f"Error occurred while sending notifications for job ID {job_id}: {str(e)}")
+        return f"Failed to send notification emails due to an error: {str(e)}"
