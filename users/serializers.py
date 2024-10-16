@@ -49,11 +49,13 @@ class CustomUserSerializer(serializers.ModelSerializer):
 # Talent Serializer (with nested CustomUser serializer)
 class TalentSerializer(serializers.ModelSerializer):
     user = CustomUserSerializer()
+    age = serializers.ReadOnlyField()  # Add the age property
+
 
     class Meta:
         model = Talent
         fields = ['user',
-            'gender','is_open_to_work','residence',
+            'gender','birth_date','age','is_open_to_work','residence',
             'about_me','job_type','job_sitting',
             'field_of_interest','social_links','companies_black_list',
             'skills','languages','certificates', 'open_processes',

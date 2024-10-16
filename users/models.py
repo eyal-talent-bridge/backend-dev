@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-import uuid
+import uuid,datetime
+from django.utils import timezone
 
 # Custom upload paths for various file types
 def cv_upload_path(instance, filename):
@@ -43,6 +44,7 @@ class CustomUser(AbstractUser):
 class Talent(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='talent_profile')
     gender = models.CharField(max_length=255, blank=True, null=True)
+    birth_date = models.DateField(default=datetime.date.today)
     is_open_to_work = models.BooleanField(default=False,blank=True, null=True)
     residence = models.CharField(max_length=255, blank=True, null=True)
     about_me = models.TextField(blank=True, null=True)
@@ -58,6 +60,17 @@ class Talent(models.Model):
     cv = models.FileField(upload_to=cv_upload_path, blank=True, null=True)
     profile_picture = models.ImageField(upload_to=profile_picture_upload_path, blank=True, null=True)
     recommendation_letter = models.FileField(upload_to=recommendation_letter_upload_path, blank=True, null=True)
+
+    @property
+    def age(self):
+        if self.birth_date:
+            today = timezone.now().date()
+            user_age = today.year - self.birth_date.year - (
+                (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
+            )
+            return user_age
+        return None
+
 
     def __str__(self):
         return self.user.email
