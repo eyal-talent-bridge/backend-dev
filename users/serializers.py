@@ -134,10 +134,6 @@ class RecruiterSerializer(serializers.ModelSerializer):
 
 
 
-# Job serializer with custom date format handling
-from rest_framework import serializers
-from .models import Job
-
 class JobSerializer(serializers.ModelSerializer):
     # Format for the 'end_date' field
     end_date = serializers.DateField(format="%d-%m-%Y", input_formats=["%d-%m-%Y", "%Y-%m-%d"])
