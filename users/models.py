@@ -120,7 +120,7 @@ class Job(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='jobs', null=True)  
-    recruiter = models.ForeignKey(Recruiter, on_delete=models.CASCADE, related_name='jobs')  
+    recruiter = models.ForeignKey(Recruiter, on_delete=models.CASCADE, related_name='jobs',null=True)  
     description = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=200,blank=True, null=True)
     requirements = models.JSONField(default=list, blank=True)
