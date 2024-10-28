@@ -47,6 +47,7 @@ class Talent(models.Model):
     birth_date = models.DateField(default=datetime.date.today)
     is_open_to_work = models.BooleanField(default=False,blank=True, null=True)
     residence = models.CharField(max_length=255, blank=True, null=True)
+    desired_salary = models.FloatField(default=0,blank=True,null=True)
     about_me = models.TextField(blank=True, null=True)
     job_type = models.CharField(max_length=255, blank=True, null=True)
     job_sitting = models.CharField(max_length=255, blank=True, null=True)
