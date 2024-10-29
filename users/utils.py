@@ -1,6 +1,5 @@
 import re,logging,os,requests
 from rest_framework.response import Response
-from django.core.exceptions import ValidationError
 from .models import *
 from urllib.parse import urlparse
 from PyPDF2 import PdfReader
@@ -10,14 +9,6 @@ from backend.settings import NOTIFICATION_SERVICE_URL
 
 users_logger = logging.getLogger('users')
 # -------------------------------------Talents-----------------------------------------------------------------------------------------------------------------------------------------------
-
-def validate_talent_email(email):
-    public_domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com']
-    domain = email.split('@')[1]
-    if domain not in public_domains:
-        Response({'status': 'error', 'message': 'Invalid email or password'},False)
-    return True
-
 
 def scan_cv_for_job_requirements(cv_file, job_requirements):
     # Log if CV is not provided
@@ -60,73 +51,6 @@ def scan_cv_for_job_requirements(cv_file, job_requirements):
     except Exception as e:
         users_logger.error(f"Error analyzing CV: {cv_file.name}. Error: {e}", exc_info=True)
         return 0
-
-
-
-
-# calculate distance btween job to talent
-    
-# API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY'
-
-# # Function to get coordinates (latitude and longitude) of a location
-# def get_coordinates(location):
-#     url = f"https://maps.googleapis.com/maps/api/geocode/json?address={location}&key={API_KEY}"
-#     response = requests.get(url)
-#     data = response.json()
-#     if data['status'] == 'OK':
-#         coordinates = data['results'][0]['geometry']['location']
-#         return coordinates['lat'], coordinates['lng']
-#     else:
-#         raise ValueError(f"Geocoding failed for location: {location}")
-
-# # Function to get the distance between two coordinates
-# def get_distance(job_place, birth_place):
-#     job_lat, job_lng = get_coordinates(job_place)
-#     birth_lat, birth_lng = get_coordinates(birth_place)
-    
-#     url = f"https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins={job_lat},{job_lng}&destinations={birth_lat},{birth_lng}&key={API_KEY}"
-    
-#     response = requests.get(url)
-#     data = response.json()
-    
-#     if data['status'] == 'OK':
-#         distance = data['rows'][0]['elements'][0]['distance']['text']  # Get distance text (in km or miles)
-#         duration = data['rows'][0]['elements'][0]['duration']['text']  # Get duration text
-#         return distance, duration
-#     else:
-#         raise ValueError("Distance calculation failed")
-
-# # Example usage
-# job_place = "Berlin, Germany"
-# birth_place = "Paris, France"
-
-# distance, duration = get_distance(job_place, birth_place)
-# print(f"The distance between {job_place} and {birth_place} is {distance}, and it takes approximately {duration}.")
-# ----------------------------------------------------------Company--------------------------------------------------------------------------------------------------------------------
-
-def validate_company_email(email):
-    public_domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com']
-    domain = email.split('@')[1]
-    if domain in public_domains:
-        Response({'status': 'error', 'message': 'Invalid email or password'},False)
-    return True
-
-def validate_website_url(url):
-    if not url:
-        return False
-    
-    # Check if the URL starts with http:// or https://
-    if not re.match(r'^https?://', url):
-        return False
-    
-    # Use urlparse to further validate the URL structure
-    parsed_url = urlparse(url)
-    if not parsed_url.scheme or not parsed_url.netloc:
-        return False
-    
-    return True
-
-
 
 
 # ---------------------------------Recruiter---------------------------------------------------------------------------------------
