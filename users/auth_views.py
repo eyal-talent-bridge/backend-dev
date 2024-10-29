@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login as auth_login, logout as logout_method
 from rest_framework_simplejwt.views import TokenObtainPairView
+from backend.settings import FRONTEND_URL
 from .serializers import *
 from .models import CustomUser
 from django.core.mail import send_mail,BadHeaderError
@@ -314,7 +315,7 @@ def request_password_reset(request):
         return Response({"message": "User with this email does not exist."}, status=404)
 
     token = default_token_generator.make_token(user)
-    reset_link = f"{settings.FRONTEND_URL}/auth/reset-password/{token}/?email={email}"
+    reset_link = f"{FRONTEND_URL}/auth/reset-password/{token}/?email={email}"
 
     email_subject = "Password Reset Request - Talent-Bridge"
     email_body = (
