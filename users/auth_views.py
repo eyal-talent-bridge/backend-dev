@@ -18,7 +18,7 @@ from django.contrib.auth.hashers import check_password
 
 
 
-auth_logger = logging.getLogger('auth')
+users_logger = logging.getLogger('users')
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
@@ -32,18 +32,18 @@ def signin(request):
         username = data.get('email', '').lower().strip()
         password = data.get('password', '').strip()
 
-        auth_logger.debug(f'Attempt login for user: {username}')
+        users_logger.debug(f'Attempt login for user: {username}')
 
         # Get the user from the database
         try:
             user = CustomUser.objects.get(username=username)
         except CustomUser.DoesNotExist:
-            auth_logger.info(f'Invalid login attempt for email: {username}')
+            users_logger.info(f'Invalid login attempt for email: {username}')
             return Response({'status': 'error', 'message': 'Invalid email or password'}, status=status.HTTP_401_UNAUTHORIZED)
 
         # Check if the provided password is correct
         if check_password(password, user.password):
-            auth_logger.info(f'User authenticated: {user.username}')
+            users_logger.info(f'User authenticated: {user.username}')
             
             # Get user details
             user_type = user.user_type
@@ -71,7 +71,7 @@ def signin(request):
             # Generate access token as a string (no need to set it manually)
             access_token = str(refresh.access_token)
 
-            auth_logger.debug(f'{username} logged in as {user_type}')
+            users_logger.debug(f'{username} logged in as {user_type}')
 
             # Return the JWT tokens
             return Response({
@@ -81,12 +81,12 @@ def signin(request):
 
         else:
             # If authentication fails
-            auth_logger.info(f'Invalid login attempt for email: {username}')
+            users_logger.info(f'Invalid login attempt for email: {username}')
             return Response({'status': 'error', 'message': 'Invalid email or password'}, status=status.HTTP_401_UNAUTHORIZED)
 
     except Exception as e:
         # Log any other error and return 500 response
-        auth_logger.error(f'Error logging in: {str(e)}')
+        users_logger.error(f'Error logging in: {str(e)}')
         return Response({'status': 'error', 'message': 'An error occurred during login'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -177,7 +177,7 @@ def user_signup(request,user_type):
 
             try:
                 company_id = (request.data.get('company'))
-                auth_logger.info(f"Company ID (UUID): {company_id}")  # Debugging line to auth_logger.info the company_id
+                users_logger.info(f"Company ID (UUID): {company_id}")  # Debugging line to users_logger.info the company_id
             except ValueError:
                 return Response({'message': 'Invalid company ID'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -195,10 +195,10 @@ def user_signup(request,user_type):
             # Fetch the company using the company ID
             try:
                 company = Company.objects.filter(user_id=company_id).first()
-                auth_logger.info(f"Company Found")  # Debugging line to confirm the company is fetched
+                users_logger.info(f"Company Found")  # Debugging line to confirm the company is fetched
 
             except Company.DoesNotExist:
-                auth_logger.info(f"Company with ID {company_id} not found")  # Debugging line if company not found
+                users_logger.info(f"Company with ID {company_id} not found")  # Debugging line if company not found
                 return Response({'message': 'Company not found'}, status=status.HTTP_404_NOT_FOUND)
 
             # Create the CustomUser instance with first and last name
@@ -261,7 +261,7 @@ def user_signup(request,user_type):
         access = refresh.access_token
 
         # Log the creation of the user
-        auth_logger.debug(f'{email} created successfully as {user_type}')
+        users_logger.debug(f'{email} created successfully as {user_type}')
         trigger_signup_notification(email)
         
         # Return the response with JWT tokens
@@ -276,7 +276,7 @@ def user_signup(request,user_type):
         return Response({"message": "Company not found for recruiter"}, status=status.HTTP_400_BAD_REQUEST)
     
     except Exception as e:
-        auth_logger.error(f"Error creating user: {e}")
+        users_logger.error(f"Error creating user: {e}")
         return Response({"message": f"An error occurred while creating the user, {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -304,14 +304,14 @@ def company_signup(request):
 def request_password_reset(request):
     email = request.data.get('email')
     if not email:
-        auth_logger.warning("Password reset requested without providing an email.")
+        users_logger.warning("Password reset requested without providing an email.")
         return Response({"message": "Email is required."}, status=400)
 
     try:
         user = CustomUser.objects.get(email=email)
-        auth_logger.info(f"Password reset request received for existing user: {email}.")
+        users_logger.info(f"Password reset request received for existing user: {email}.")
     except CustomUser.DoesNotExist:
-        auth_logger.warning(f"Password reset attempted for non-existent user with email: {email}.")
+        users_logger.warning(f"Password reset attempted for non-existent user with email: {email}.")
         return Response({"message": "User with this email does not exist."}, status=404)
 
     token = default_token_generator.make_token(user)
@@ -338,13 +338,13 @@ def request_password_reset(request):
             [user.email],
         )
     except BadHeaderError:
-        auth_logger.error(f"BadHeaderError: Invalid header encountered when sending email to {email}.")
+        users_logger.error(f"BadHeaderError: Invalid header encountered when sending email to {email}.")
         return Response({"error": "Invalid header found."}, status=400)
     except Exception as e:
-        auth_logger.error(f"Error sending email to {email}: {e}")
+        users_logger.error(f"Error sending email to {email}: {e}")
         return Response({"error": "An error occurred while sending the email."}, status=500)
 
-    auth_logger.info(f"Password reset link successfully sent to {email}.")
+    users_logger.info(f"Password reset link successfully sent to {email}.")
     return Response({"message": "Password reset link sent."}, status=200)
 
 
@@ -354,16 +354,16 @@ def reset_password_confirm(request, token):
     email = request.data.get('email')
     new_password = request.data.get('newPassword')
 
-    auth_logger.info(f"Password reset request received with token: {token}")
+    users_logger.info(f"Password reset request received with token: {token}")
 
     if not email or not new_password:
-        auth_logger.warning("Email or new password not provided.")
+        users_logger.warning("Email or new password not provided.")
         return Response({"error": "Email and new password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         user = CustomUser.objects.get(email=email)
     except CustomUser.DoesNotExist:
-        auth_logger.warning(f"User with email {email} does not exist.")
+        users_logger.warning(f"User with email {email} does not exist.")
         return Response({"error": "Invalid email."}, status=status.HTTP_404_NOT_FOUND)
 
     # Validate token and reset the password
@@ -372,14 +372,14 @@ def reset_password_confirm(request, token):
             user.set_password(new_password)
             user.save()
 
-            auth_logger.info(f"Password reset successfully for user with email: {user.email}")
+            users_logger.info(f"Password reset successfully for user with email: {user.email}")
             return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            auth_logger.error(f"Error saving new password for user with email {user.email}: {e}")
+            users_logger.error(f"Error saving new password for user with email {user.email}: {e}")
             return Response({"error": "An error occurred while resetting the password."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     else:
-        auth_logger.warning(f"Invalid or expired token for user with email: {email}")
+        users_logger.warning(f"Invalid or expired token for user with email: {email}")
         return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
 # --------------------------Logout------------------------------------------------------------------------------------------------------------
@@ -388,7 +388,7 @@ def reset_password_confirm(request, token):
 @permission_classes([IsAuthenticated])
 def logout(request):
     logout_method(request)
-    auth_logger.debug(f"User {request.user.email} logged out.")
+    users_logger.debug(f"User {request.user.email} logged out.")
     return Response({"message": "User logged out successfully."}, status=status.HTTP_200_OK)
 
 

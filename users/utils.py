@@ -9,7 +9,6 @@ from backend.settings import NOTIFICATION_SERVICE_URL
 
 
 users_logger = logging.getLogger('users')
-cv_logger = logging.getLogger('cv')
 # -------------------------------------Talents-----------------------------------------------------------------------------------------------------------------------------------------------
 
 def validate_talent_email(email):
@@ -23,11 +22,11 @@ def validate_talent_email(email):
 def scan_cv_for_job_requirements(cv_file, job_requirements):
     # Log if CV is not provided
     if not cv_file:
-        cv_logger.info("No CV is defined for this talent.")
+        users_logger.info("No CV is defined for this talent.")
         return 0
 
     try:
-        cv_logger.info(f"Scanning CV: {cv_file.name}")
+        users_logger.info(f"Scanning CV: {cv_file.name}")
         
         ext = os.path.splitext(cv_file.name)[1].lower()
         cv_content = ''
@@ -41,7 +40,7 @@ def scan_cv_for_job_requirements(cv_file, job_requirements):
                     if text:
                         cv_content += text.lower()
                     else:
-                        cv_logger.warning(f"Page {pdf_reader.pages.index(page) + 1} has no extractable text in CV: {cv_file.name}.")
+                        users_logger.warning(f"Page {pdf_reader.pages.index(page) + 1} has no extractable text in CV: {cv_file.name}.")
         else:
             # Process text files
             with open(cv_file.path, 'r') as file:
@@ -54,7 +53,7 @@ def scan_cv_for_job_requirements(cv_file, job_requirements):
         # Check intersection between CV words and job requirements
         matches = len(cv_words.intersection(job_requirements_set))
 
-        cv_logger.info(f"Total matches found: {matches} for {len(job_requirements)} job requirements in CV: {cv_file.name}.")
+        users_logger.info(f"Total matches found: {matches} for {len(job_requirements)} job requirements in CV: {cv_file.name}.")
 
         return matches
 
