@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-import os,ssl
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -47,7 +47,6 @@ INSTALLED_APPS = [
     'drf_yasg',
     'channels',
     'social_django',
-    'calendars',
     'corsheaders',
     
 ]
@@ -176,7 +175,7 @@ SIMPLE_JWT = {
 
 AUTH_USER_MODEL = 'users.CustomUser'
 
-FRONTEND_URL = 'http://localhost:5173'
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 AUTHENTICATION_BACKENDS = [
     # 'social_core.backends.facebook.FacebookOAuth2',
@@ -188,22 +187,22 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/' 
 
 
-SOCIAL_AUTH_FACEBOOK_KEY = '481516858047813'
-SOCIAL_AUTH_FACEBOOK_SECRET = '1b5d4c130a789740efed3b7d3168284f'
-SOCIAL_AUTH_FACEBOOK_SCOPE = ['email']  # Optional, but recommended
+# SOCIAL_AUTH_FACEBOOK_KEY = '481516858047813'
+# SOCIAL_AUTH_FACEBOOK_SECRET = '1b5d4c130a789740efed3b7d3168284f'
+# SOCIAL_AUTH_FACEBOOK_SCOPE = ['email']  # Optional, but recommended
 # SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {
 #     'fields': 'id, name, email, picture.type(large)'
 # }
 
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '40192662847-17hkp60agk5k5at07dto52j7gboqrudh.apps.googleusercontent.com'  
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
+# SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '40192662847-17hkp60agk5k5at07dto52j7gboqrudh.apps.googleusercontent.com'  
+# SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
 
 
-SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
-    'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/userinfo.profile',
-]
+# SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
+#     'https://www.googleapis.com/auth/calendar',
+#     'https://www.googleapis.com/auth/userinfo.email',
+#     'https://www.googleapis.com/auth/userinfo.profile',
+# ]
 
 # Optional: If you want to store the tokens in the database
 SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = [
@@ -230,38 +229,7 @@ LOGGING = {
             'when': 'midnight',
             'backupCount': 7,
         },
-        'auth_file': {
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/auth.log'),
-            'formatter': 'simpleRe',
-            'when': 'midnight',
-            'backupCount': 7,
-        },
-        'calendars_file': {
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/calendars.log'),
-            'formatter': 'simpleRe',
-            'when': 'midnight',
-            'backupCount': 7,
-        },
-        'models_file': {
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/models.log'),
-            'formatter': 'simpleRe',
-            'when': 'midnight',
-            'backupCount': 7,
-        },
-        'cv_file': {
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/cv.log'),
-            'formatter': 'simpleRe',
-            'when': 'midnight',
-            'backupCount': 7,
-        },
+
         'console': {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'class': 'logging.StreamHandler',
@@ -271,26 +239,6 @@ LOGGING = {
     'loggers': {
         'users': {
             'handlers': ['users_file', 'console'],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'auth': {
-            'handlers': ['auth_file', 'console'],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'calendars': {
-            'handlers': ['calendars_file', 'console'],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'cv': {
-            'handlers': ['cv_file', 'console'],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'models': {
-            'handlers': ['models_file', 'console'],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
