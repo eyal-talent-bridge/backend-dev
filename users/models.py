@@ -51,7 +51,6 @@ class Talent(models.Model):
     about_me = models.TextField(blank=True, null=True)
     job_type = models.CharField(max_length=255, blank=True, null=True)
     job_sitting = models.CharField(max_length=255, blank=True, null=True)
-    field_of_interest = models.JSONField(default=dict, blank=True)
     social_links = models.JSONField(default=dict, blank=True)
     companies_black_list = models.JSONField(default=list, blank=True)
     skills = models.JSONField(default=list, blank=True, null=True)
