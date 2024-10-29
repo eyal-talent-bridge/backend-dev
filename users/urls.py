@@ -1,6 +1,5 @@
 from django.urls import path,include
 from .views import *
-from .auth_views import *
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -23,7 +22,6 @@ urlpatterns = [
     path('social-auth/', include('social_django.urls', namespace='social')),
     path('auth/request-password-reset/', request_password_reset, name='request_password_reset'),
     path('auth/reset-password/<str:token>/', reset_password_confirm, name='reset_password_confirm'),
-    path('auth/facebook/', talent_facebook_login, name='talent_facebook_login'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
