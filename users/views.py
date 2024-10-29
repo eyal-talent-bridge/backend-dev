@@ -111,12 +111,6 @@ def user_signup(request,user_type):
             address = str(request.data.get('address')).capitalize()
             phone_number = request.data.get('phone_number')
 
-            if not validate_company_email(email=email):
-                return Response({'error': 'Invalid company email'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            if not validate_website_url(url=website):
-                return Response({'error': 'Invalid company website'}, status=status.HTTP_400_BAD_REQUEST)
-
             if not validate_phone_number(phone_number):
                 return Response({'error': 'Invalid company phone number'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -159,9 +153,6 @@ def user_signup(request,user_type):
             phone_number = request.data.get('phone_number')
 
             # Validate recruiter's email against the company's email domain
-            if not validate_recruiter_email(email, company_id):
-                return Response({'message': 'Invalid recruiter email'}, status=status.HTTP_400_BAD_REQUEST)
-
             # Validate phone number format
             if not validate_phone_number(phone_number):
                 return Response({'message': 'Invalid recruiter phone number'}, status=status.HTTP_400_BAD_REQUEST)
@@ -202,12 +193,7 @@ def user_signup(request,user_type):
             first_name = str(request.data.get('first_name')).capitalize()
             last_name = str(request.data.get('last_name')).capitalize()
             gender = request.data.get('gender')
-
-            # password validation
-            
-            if not validate_talent_email(email=email):
-                return Response({"message": "Invalid email for Talent"}, status=status.HTTP_400_BAD_REQUEST)
-
+        
             # Create the CustomUser instance with first and last name
             user = CustomUser.objects.create_user(
                 username=email,  # Use email as the username
@@ -844,8 +830,7 @@ def search_talents_for_job(request, job_id):
             users_logger.info(f"Starting talent search for job: {job.title} at company: {company.name}")
 
             # Log the number of talents found
-            talents = Talent.objects.filter(is_open_to_work=True,)
-            # .exclude(companies_black_list__contains=job.company)
+            talents = Talent.objects.filter(is_open_to_work=True)
             users_logger.info(f"{talents.count()} talents found who are open to work for job - {job.title} in {company.name}.")
 
             # Initialize job requirements list
