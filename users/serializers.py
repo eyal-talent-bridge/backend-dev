@@ -54,13 +54,8 @@ class TalentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Talent
-        fields = ['user',
-            'gender','birth_date','age','is_open_to_work','residence',
-            'about_me','job_type','job_sitting',
-            'field_of_interest','social_links','companies_black_list',
-            'skills','languages','certificates', 'open_processes',
-            'cv','recommendation_letter','profile_picture','desired_salary',
-            ]
+        fields = "__all__"
+
 
 
     def validate_website_url(website):
