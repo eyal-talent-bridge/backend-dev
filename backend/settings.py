@@ -46,7 +46,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
     'channels',
-    'social_django',
     'corsheaders',
     
 ]
@@ -64,7 +63,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'social_django.middleware.SocialAuthExceptionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
 ]
 
@@ -89,8 +87,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'social_django.context_processors.backends',
-                'social_django.context_processors.login_redirect',
             ],
         },
     },
@@ -178,8 +174,6 @@ AUTH_USER_MODEL = 'users.CustomUser'
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 AUTHENTICATION_BACKENDS = [
-    # 'social_core.backends.facebook.FacebookOAuth2',
-    # 'social_core.backends.google.GoogleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 ]
 
@@ -187,29 +181,6 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/' 
 
 
-# SOCIAL_AUTH_FACEBOOK_KEY = '481516858047813'
-# SOCIAL_AUTH_FACEBOOK_SECRET = '1b5d4c130a789740efed3b7d3168284f'
-# SOCIAL_AUTH_FACEBOOK_SCOPE = ['email']  # Optional, but recommended
-# SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {
-#     'fields': 'id, name, email, picture.type(large)'
-# }
-
-# SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '40192662847-17hkp60agk5k5at07dto52j7gboqrudh.apps.googleusercontent.com'  
-# SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
-
-
-# SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
-#     'https://www.googleapis.com/auth/calendar',
-#     'https://www.googleapis.com/auth/userinfo.email',
-#     'https://www.googleapis.com/auth/userinfo.profile',
-# ]
-
-# Optional: If you want to store the tokens in the database
-SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = [
-    ('refresh_token', 'refresh_token'),
-    ('expires_in', 'expires'),
-    ('access_token', 'access_token'),
-]
 
 LOGGING = {
     'version': 1,

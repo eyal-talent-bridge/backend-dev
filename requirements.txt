@@ -136,8 +136,6 @@ rsa==4.9
 service-identity==24.1.0
 simple-websocket==1.0.0
 six==1.16.0
-social-auth-app-django==5.4.1
-social-auth-core==4.5.4
 soupsieve==2.5
 sqlparse==0.4.4
 stack-data==0.6.3

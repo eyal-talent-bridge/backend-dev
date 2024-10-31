@@ -16,10 +16,11 @@ urlpatterns = [
     path('auth/signup/recruiter/', recruiter_signup, name='recruiter_signup'),
     path('auth/signup/company/', company_signup, name='company_signup'),
     path('auth/logout',logout, name='logout'),
+    path('google-login/', google_login, name='google_login'),
+
     
 
 
-    path('social-auth/', include('social_django.urls', namespace='social')),
     path('auth/request-password-reset/', request_password_reset, name='request_password_reset'),
     path('auth/reset-password/<str:token>/', reset_password_confirm, name='reset_password_confirm'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
