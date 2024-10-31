@@ -43,6 +43,12 @@ class CustomUserSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+
+class CompleteProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['phone_number']
+
 # Talent Serializer
 class TalentSerializer(serializers.ModelSerializer):
     user = CustomUserSerializer()  # This now includes `phone_number`
