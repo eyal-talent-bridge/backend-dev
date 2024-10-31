@@ -17,6 +17,7 @@ urlpatterns = [
     path('auth/signup/company/', company_signup, name='company_signup'),
     path('auth/logout',logout, name='logout'),
     path('google-login/', google_login, name='google_login'),
+    path('complete-profile/', complete_profile, name= 'complete_talent_profile'),
 
     
 
