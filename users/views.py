@@ -943,109 +943,62 @@ def search_talents_for_job(request, job_id):
 CustomUser = get_user_model()
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 
-# Log the GOOGLE_CLIENT_ID for debugging
-# users_logger.debug(f'Backend GOOGLE_CLIENT_ID: {GOOGLE_CLIENT_ID}')
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def google_login(request):
     data = request.data
-    token = data.get('token')
+    users_logger.debug(f"Received data in Google login request: {data}")  # Log the full payload for verification
+
     email = data.get('email')
-    first_name = data.get('first_name', '')
-    last_name = data.get('last_name', '')
-    # picture = data.get('picture', '')
+    google_user_id = data.get('googleUserId')  # This should be the 'sub' field from Google user info
+    name = data.get('name', '')
 
-    users_logger.debug(f'Received Google login request with token: {token}, email: {email}')
-
-    if not token or not email:
-        users_logger.warning('Invalid data received: Missing token or email.')
-        return Response({'success': False, 'message': 'Invalid data'}, status=status.HTTP_400_BAD_REQUEST)
+    if not email or not google_user_id:
+        users_logger.warning("Required Google user information missing.")
+        return Response({'success': False, 'message': 'User information missing.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Verify the ID Token
-        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
-        users_logger.debug('ID Token verified successfully.')
+        # Check if user exists or create a new user
+        first_name, last_name = (name.split()[0], name.split()[-1]) if name else ("", "")
+        user, created = CustomUser.objects.get_or_create(
+            email=email,
+            defaults={'first_name': first_name, 'last_name': last_name}
+        )
+        missing_info = created  # Profile completion required if the user is newly created
 
-        # Check if the token is intended for your app
-        # if idinfo['aud'] != str(GOOGLE_CLIENT_ID):
-        #     users_logger.error(f'Invalid audience: {idinfo["aud"]}')
-        #     raise ValueError('Invalid audience.')
-
-        # Verify the token's issuer
-        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-            users_logger.error(f'Invalid issuer: {idinfo["iss"]}')
-            raise ValueError('Invalid issuer.')
-
-        # Check token expiration
-        if idinfo['exp'] < int(time.time()):
-            users_logger.error('Token has expired.')
-            raise ValueError('Token has expired.')
-
-        # Log token's issued at time and expiration
-        users_logger.debug(f'Token issued at: {idinfo["iat"]}, expires at: {idinfo["exp"]}')
-
-        # Extract user information
-        google_user_id = idinfo['sub']
-        email = idinfo.get('email')
-        if not email:
-            users_logger.error('Email not found in ID token.')
-            raise ValueError('Email not found in ID token.')
-
-        # Check if user exists
-        try:
-            user = CustomUser.objects.get(email=email)
-            missing_info = not all([
-                # user.gender,
-                # user.birth_date,
-                user.phone_number,
-                user.first_name,
-                user.last_name
-            ])
-            users_logger.debug(f'Existing user found: {user.email}, missing_info: {missing_info}')
-        except CustomUser.DoesNotExist:
-            # Create a new user
-            user = CustomUser.objects.create(
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                # picture=picture,
-                # Set default or blank values for other required fields
-                # Ensure that other required fields have default values or are optional
-            )
-            missing_info = True
-            users_logger.debug(f'New user created: {user.email}, missing_info: {missing_info}')
-
-        # Generate JWT tokens
+        # Generate JWT tokens for the authenticated user
         refresh = RefreshToken.for_user(user)
+        
+        # Custom claims for the JWT payload
+        refresh['user_type'] = 'Talent'
+        refresh['first_name'] = first_name
+        refresh['last_name'] = last_name
+        refresh['username'] = email
+
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
-        users_logger.debug(f'JWT tokens generated for user: {user.email}')
+        users_logger.debug(f"JWT tokens generated for user: {user.email} with access token: {access_token}")
 
+        # Respond with user information and tokens
         return Response({
             'success': True,
             'access': access_token,
             'refresh': refresh_token,
-
             'user': {
                 'email': user.email,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
-                # 'picture': user.picture,
-                # Include other user fields as needed
             },
-            'missing_info': missing_info,  # To handle profile completion
+            'missing_info': missing_info,
         }, status=status.HTTP_200_OK)
 
-    except ValueError as e:
-        # Invalid token
-        users_logger.error(f'Token verification failed: {str(e)}')
-        return Response({'success': False, 'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        # Unexpected errors
-        users_logger.exception(f'Unexpected error during Google login: {str(e)}')
+        # Handle unexpected errors
+        users_logger.exception(f"Unexpected error during Google login: {str(e)}")
         return Response({'success': False, 'message': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
