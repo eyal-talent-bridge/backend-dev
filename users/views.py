@@ -785,6 +785,7 @@ def create_job(request, company_id):
 
 
 
+@api_view(['GET', 'PUT', 'DELETE'])
 def manage_recruiters(request, recruiter_id):
     users_logger.debug(f'Request method: {request.method}, Recruiter ID: {recruiter_id}, User: {request.user}')
 
@@ -819,8 +820,6 @@ def manage_recruiters(request, recruiter_id):
 
     users_logger.debug(f'Invalid request method: {request.method}')
     return Response({'message': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -938,20 +937,14 @@ def search_talents_for_job(request, job_id):
 
 #---------------------------------------------Social login--------------------------------------------------------
 
-
-
-CustomUser = get_user_model()
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def google_login(request):
     data = request.data
-    users_logger.debug(f"Received data in Google login request: {data}")  # Log the full payload for verification
+    users_logger.debug(f"Received data in Google login request: {data}")
 
     email = data.get('email')
-    google_user_id = data.get('googleUserId')  # This should be the 'sub' field from Google user info
+    google_user_id = data.get('googleUserId')
     name = data.get('name', '')
 
     if not email or not google_user_id:
@@ -959,18 +952,30 @@ def google_login(request):
         return Response({'success': False, 'message': 'User information missing.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Check if user exists or create a new user
+        # Extract first and last names if available
         first_name, last_name = (name.split()[0], name.split()[-1]) if name else ("", "")
+        
+        # Check if user exists or create a new user if not found
         user, created = CustomUser.objects.get_or_create(
             email=email,
             defaults={'first_name': first_name, 'last_name': last_name}
         )
-        missing_info = created  # Profile completion required if the user is newly created
+        user.save
+        
+        # If a new user is created, set missing_info flag and log the event
+        if created:
+            users_logger.info(f"New user created: {email}")
+            message = "New user created. Please complete your profile."
+            missing_info = True
+        else:
+            users_logger.info(f"Existing user logged in: {email}")
+            message = "User logged in successfully."
+            missing_info = False
 
         # Generate JWT tokens for the authenticated user
         refresh = RefreshToken.for_user(user)
         
-        # Custom claims for the JWT payload
+        # Add custom claims to the JWT token payload
         refresh['user_type'] = 'Talent'
         refresh['first_name'] = first_name
         refresh['last_name'] = last_name
@@ -981,9 +986,10 @@ def google_login(request):
 
         users_logger.debug(f"JWT tokens generated for user: {user.email} with access token: {access_token}")
 
-        # Respond with user information and tokens
+        # Respond with user information, tokens, and a message
         return Response({
             'success': True,
+            'message': message,
             'access': access_token,
             'refresh': refresh_token,
             'user': {
@@ -991,7 +997,7 @@ def google_login(request):
                 'first_name': user.first_name,
                 'last_name': user.last_name,
             },
-            'missing_info': missing_info,
+            'missing_info': missing_info,  # True if profile completion is needed
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
