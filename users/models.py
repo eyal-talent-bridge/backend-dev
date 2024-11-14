@@ -44,7 +44,7 @@ class CustomUser(AbstractUser):
 class Talent(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='talent_profile')
     gender = models.CharField(max_length=255, blank=True, null=True)
-    birth_date = models.DateField(default=datetime.date.today)
+    birth_date = models.DateField(default=datetime.date.today,blank=True, null=True)
     is_open_to_work = models.BooleanField(default=False,blank=True, null=True)
     residence = models.CharField(max_length=255, blank=True, null=True)
     desired_salary = models.FloatField(default=0,blank=True,null=True)
