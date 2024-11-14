@@ -50,6 +50,7 @@ urlpatterns = [
 
 # -------------------------------------general--------------------------------------------------------------------------------
     path('user/<uuid:user_id>/', user_detail, name='user_detail'),
+    path("check-auth/",check_auth,name='check_auth')
     
 
 ]

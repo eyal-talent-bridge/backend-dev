@@ -15,9 +15,8 @@ from django.core.mail import send_mail,BadHeaderError
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import check_password
-from django.contrib.auth import get_user_model
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
+from django.db import IntegrityError
+
 
 
 
@@ -952,17 +951,21 @@ def google_login(request):
         return Response({'success': False, 'message': 'User information missing.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Extract first and last names if available
         first_name, last_name = (name.split()[0], name.split()[-1]) if name else ("", "")
-        
-        # Check if user exists or create a new user if not found
-        user, created = CustomUser.objects.get_or_create(
-            email=email,
-            defaults={'first_name': first_name, 'last_name': last_name}
-        )
-        user.save
-        
-        # If a new user is created, set missing_info flag and log the event
+
+        # Check if a user with the same username already exists to avoid IntegrityError
+        if CustomUser.objects.filter(email=email).exists():
+            user = CustomUser.objects.get(email=email)
+            created = False
+        else:
+            user = CustomUser(email=email, first_name=first_name, last_name=last_name)
+            user.username = email  # Ensure username is set properly if needed
+            user.save()
+            created = True
+            Talent.objects.create(
+                user=user
+            )
+
         if created:
             users_logger.info(f"New user created: {email}")
             message = "New user created. Please complete your profile."
@@ -972,21 +975,17 @@ def google_login(request):
             message = "User logged in successfully."
             missing_info = False
 
-        # Generate JWT tokens for the authenticated user
         refresh = RefreshToken.for_user(user)
-        
-        # Add custom claims to the JWT token payload
         refresh['user_type'] = 'Talent'
-        refresh['first_name'] = first_name
-        refresh['last_name'] = last_name
-        refresh['username'] = email
+        refresh['first_name'] = user.first_name
+        refresh['last_name'] = user.last_name
+        refresh['username'] = user.email
 
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
         users_logger.debug(f"JWT tokens generated for user: {user.email} with access token: {access_token}")
 
-        # Respond with user information, tokens, and a message
         return Response({
             'success': True,
             'message': message,
@@ -997,21 +996,35 @@ def google_login(request):
                 'first_name': user.first_name,
                 'last_name': user.last_name,
             },
-            'missing_info': missing_info,  # True if profile completion is needed
+            'missing_info': missing_info,
         }, status=status.HTTP_200_OK)
 
+    except IntegrityError:
+        users_logger.error(f"Integrity error: Duplicate entry for email {email}")
+        return Response({'success': False, 'message': 'A user with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        # Handle unexpected errors
         users_logger.exception(f"Unexpected error during Google login: {str(e)}")
         return Response({'success': False, 'message': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def complete_profile(request):
+    if not request.user.is_authenticated:
+        return Response({'success': False, 'message': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
+    
     serializer = CompleteProfileSerializer(instance=request.user, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response({'success': True})
     else:
         return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_auth(request):
+    users_logger({"message": "User is authenticated", "user_id": request.user.id})
+    print(request.user.id)
+    return Response({"message": "User is authenticated", "user_id": request.user.id})
