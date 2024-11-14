@@ -945,6 +945,8 @@ def google_login(request):
     email = data.get('email')
     google_user_id = data.get('googleUserId')
     name = data.get('name', '')
+    gender = data.get('gender')
+    birth_date = data.get('birth_date')
 
     if not email or not google_user_id:
         users_logger.warning("Required Google user information missing.")
@@ -953,27 +955,35 @@ def google_login(request):
     try:
         first_name, last_name = (name.split()[0], name.split()[-1]) if name else ("", "")
 
-        # Check if a user with the same username already exists to avoid IntegrityError
-        if CustomUser.objects.filter(email=email).exists():
-            user = CustomUser.objects.get(email=email)
-            created = False
-        else:
-            user = CustomUser(email=email, first_name=first_name, last_name=last_name)
-            user.username = email  # Ensure username is set properly if needed
-            user.save()
-            created = True
-            Talent.objects.create(
-                user=user
-            )
+        # Check if a user with the same email already exists
+        user, created = CustomUser.objects.get_or_create(email=email, defaults={
+            'first_name': first_name,
+            'last_name': last_name,
+            'username': email,
+        })
 
         if created:
+            # New user was created
+            Talent.objects.create(
+                user=user,
+                gender=gender,
+                birth_date=birth_date
+            )
             users_logger.info(f"New user created: {email}")
             message = "New user created. Please complete your profile."
             missing_info = True
         else:
+            # User already exists, handle as an existing user login
             users_logger.info(f"Existing user logged in: {email}")
             message = "User logged in successfully."
             missing_info = False
+
+        # Calculate age if birth_date is available
+        age = None
+        if birth_date:
+            birth_date_obj = datetime.strptime(birth_date, '%Y-%m-%d')
+            today = datetime.today()
+            age = today.year - birth_date_obj.year - ((today.month, today.day) < (birth_date_obj.month, birth_date_obj.day))
 
         refresh = RefreshToken.for_user(user)
         refresh['user_type'] = 'Talent'
@@ -991,22 +1001,21 @@ def google_login(request):
             'message': message,
             'access': access_token,
             'refresh': refresh_token,
-            'user': {
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-            },
+            'email': user.email,
+            'first_name': str(user.first_name).capitalize(),
+            'last_name': str(user.last_name).capitalize(),
+            'gender': gender,
+            'age': age,
+
             'missing_info': missing_info,
         }, status=status.HTTP_200_OK)
 
-    except IntegrityError:
-        users_logger.error(f"Integrity error: Duplicate entry for email {email}")
+    except IntegrityError as e:
+        users_logger.error(f"Integrity error: {str(e)}")
         return Response({'success': False, 'message': 'A user with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         users_logger.exception(f"Unexpected error during Google login: {str(e)}")
         return Response({'success': False, 'message': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -1017,6 +1026,7 @@ def complete_profile(request):
     serializer = CompleteProfileSerializer(instance=request.user, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
+        print(f"Serialized data: {serializer.data}")  # Debugging line to check returned data
         return Response({'success': True})
     else:
         return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
