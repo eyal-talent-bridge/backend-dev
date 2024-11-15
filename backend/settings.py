@@ -223,5 +223,4 @@ LOGGING = {
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-USER_SERVICE_URL = os.getenv('USER_SERVICE_URL', 'http://localhost:8000/api/users/')
 NOTIFICATION_SERVICE_URL = os.environ.setdefault('NOTIFICATION_SERVICE_URL', 'http://localhost:8070/api/v1/notifications/')
