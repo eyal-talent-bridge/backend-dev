@@ -1038,3 +1038,15 @@ def check_auth(request):
     users_logger.info({"message": "User is authenticated", "user_id": request.user.id})
     print(request.user.id)
     return Response({"message": "User is authenticated", "user_id": request.user.id})
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])  # Or use custom permissions for service accounts
+def get_inactive_users(request):
+    """Endpoint to get users who haven't logged in for 72 hours."""
+    threshold = timezone.now() - datetime.timedelta(hours=72)
+    inactive_users = CustomUser.objects.filter(last_login__lt=threshold, is_active=True)
+
+    serializer = CustomUserSerializer(inactive_users, many=True)
+    return Response(serializer.data, status=200)
