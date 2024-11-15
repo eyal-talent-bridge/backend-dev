@@ -1008,7 +1008,7 @@ def google_login(request):
             'age': age,
 
             'missing_info': missing_info,
-        }, status=status.HTTP_200_OK)
+        }, status=status.HTTP_201_CREATED)
 
     except IntegrityError as e:
         users_logger.error(f"Integrity error: {str(e)}")
@@ -1027,7 +1027,7 @@ def complete_profile(request):
     if serializer.is_valid():
         serializer.save()
         print(f"Serialized data: {serializer.data}")  # Debugging line to check returned data
-        return Response({'success': True})
+        return Response({'success': True}, status=status.HTTP_201_CREATED)
     else:
         return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
