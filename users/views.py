@@ -1035,6 +1035,6 @@ def complete_profile(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_auth(request):
-    users_logger({"message": "User is authenticated", "user_id": request.user.id})
+    users_logger.info({"message": "User is authenticated", "user_id": request.user.id})
     print(request.user.id)
     return Response({"message": "User is authenticated", "user_id": request.user.id})
