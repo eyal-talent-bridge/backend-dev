@@ -33,7 +33,6 @@ urlpatterns = [
     path('manage-cv/<uuid:talent_id>/', manage_cv, name='manage_cv'),
     path('manage-profile-pic/<uuid:user_id>/', manage_profile_pic, name='manage_profile_pic'),
     path('manage-recommendation-letter/<uuid:user_id>/', manage_recommendation_letter, name='manage_recommendation_letter'),
-    path('search_talents/<uuid:job_id>/', search_talents_for_job, name='search_talents_for_job'),
 
     #-------------------------------------recruiter--------------------------------------------------------------------------------
     path('recruiter/<uuid:recruiter_id>/jobs/', recruiter_jobs, name='recruiter-jobs'),
@@ -52,6 +51,9 @@ urlpatterns = [
     path('user/<uuid:user_id>/', user_detail, name='user_detail'),
     path("check-auth/",check_auth,name='check_auth'),
     path('inactive-users/', get_inactive_users, name='get_inactive_users'),
+    path('talents/', get_talents, name='get_talents'),
+    # path('job/<uuid:job_id>/', get_job_details, name='get_job_details'),
+
 
     
 
