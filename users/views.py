@@ -946,13 +946,3 @@ def get_talents(request):
     talents = Talent.objects.filter(is_open_to_work=True)
     serializer = TalentSerializer(talents, many=True)
     return Response(serializer.data, status=200)
-
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def get_job_details(request, job_id):
-#     try:
-#         job = Job.objects.get(id=job_id)
-#         serializer = JobSerializer(job)
-#         return Response(serializer.data, status=200)
-#     except Job.DoesNotExist:
-#         return Response({'message': 'Job not found'}, status=404)
