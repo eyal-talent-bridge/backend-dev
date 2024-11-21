@@ -52,7 +52,7 @@ urlpatterns = [
     path("check-auth/",check_auth,name='check_auth'),
     path('inactive-users/', get_inactive_users, name='get_inactive_users'),
     path('talents/', get_talents, name='get_talents'),
-    # path('job/<uuid:job_id>/', get_job_details, name='get_job_details'),
+
 
 
     

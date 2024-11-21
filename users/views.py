@@ -652,7 +652,7 @@ def talent_open_processes(request):
 
 
 
-@api_view(['GET', 'PUT', 'DELETE'])
+@api_view(['GET', 'PUT', 'DELETE', 'POST'])
 @permission_classes([IsAuthenticated])
 def manage_jobs(request, job_id):
     users_logger.debug(f'Request method: {request.method}, Job ID: {job_id}, User: {request.user}')
@@ -683,11 +683,44 @@ def manage_jobs(request, job_id):
         users_logger.debug(f'Job deleted successfully: {job_id}')
         return Response({'message': 'Job deleted successfully!'}, status=status.HTTP_200_OK)
     
-    users_logger.debug(f'Invalid request method: {request.method}')
-    return Response({'message': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    elif request.method == 'POST':
+    # Saving talents to the job
+        talent_id = request.data.get('talent_id')
+        if not talent_id:
+            return Response({'message': 'Talent ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        match_by_cv = request.data.get('match_by_cv')
+        match_by_form = request.data.get('match_by_form')
+
+        if match_by_cv is None or match_by_form is None:
+            return Response({'message': 'Match data is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        first_name = request.data.get('first_name')
+        last_name = request.data.get('last_name')
+
+        if first_name is None or last_name is None:
+            return Response({'message': 'Full name is required'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
+        relevant_talents = job.relevant_talents or []
+        
+        # Check if the talent already exists in the relevant_talents list
+        if not any(talent['talent_id'] == talent_id for talent in relevant_talents):
+            relevant_talent = {
+                'talent_id': talent_id,
+                'match_by_cv': match_by_cv,
+                'match_by_form': match_by_form,
+                'first_name': first_name,
+                'last_name': last_name
+            }
+            relevant_talents.append(relevant_talent)
+            job.relevant_talents = relevant_talents
+            job.save()
+            users_logger.debug(f'Talent {talent_id} saved to job {job_id}')
+            return Response({'message': 'Talent saved successfully!'}, status=status.HTTP_200_OK)
+    else:
+        users_logger.debug(f'Talent {talent_id} already saved to job {job_id}')
+        return Response({'message': 'Talent already saved to this job'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
@@ -943,6 +976,6 @@ def get_inactive_users(request):
 @permission_classes([IsAuthenticated])
 def get_talents(request):
     # Retrieve talents who are open to work
-    talents = Talent.objects.filter(is_open_to_work=True)
+    talents = Talent.objects.filter(is_open_to_work=True, )
     serializer = TalentSerializer(talents, many=True)
     return Response(serializer.data, status=200)
