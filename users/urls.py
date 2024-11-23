@@ -44,6 +44,7 @@ urlpatterns = [
     path('company/<uuid:company_id>/job/', create_job, name='create_job'),
     path('company/<uuid:company_id>/jobs/', company_jobs, name='company-jobs'),
     path('recruiters/<uuid:recruiter_id>/', manage_recruiters, name='company-jobs'),
+    path('recruiters/tags/<uuid:job_id>/', manage_tags, name='manage_tags'),
 
 
 

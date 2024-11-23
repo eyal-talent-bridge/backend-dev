@@ -682,45 +682,83 @@ def manage_jobs(request, job_id):
         job.delete()
         users_logger.debug(f'Job deleted successfully: {job_id}')
         return Response({'message': 'Job deleted successfully!'}, status=status.HTTP_200_OK)
+
+
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_tags(request, job_id):
+    users_logger.debug(f'Request method: {request.method}, Job ID: {job_id}, User: {request.user}')
     
-    elif request.method == 'POST':
-    # Saving talents to the job
+    try:
+        job = Job.objects.get(id=job_id)
+        users_logger.debug(f'Job found: {job_id}')
+    except Job.DoesNotExist:
+        users_logger.debug(f'Job not found: {job_id}')
+        return Response({'message': 'Job not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'POST':
+        # Adding a talent to the job
         talent_id = request.data.get('talent_id')
-        if not talent_id:
-            return Response({'message': 'Talent ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
         match_by_cv = request.data.get('match_by_cv')
         match_by_form = request.data.get('match_by_form')
-
-        if match_by_cv is None or match_by_form is None:
-            return Response({'message': 'Match data is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
         first_name = request.data.get('first_name')
         last_name = request.data.get('last_name')
 
-        if first_name is None or last_name is None:
-            return Response({'message': 'Full name is required'}, status=status.HTTP_400_BAD_REQUEST)
-
+        # Validate required fields
+        if not all([talent_id, match_by_cv, match_by_form, first_name, last_name]):
+            return Response({'message': 'All fields are required'}, status=status.HTTP_400_BAD_REQUEST)
 
         relevant_talents = job.relevant_talents or []
-        
+
         # Check if the talent already exists in the relevant_talents list
-        if not any(talent['talent_id'] == talent_id for talent in relevant_talents):
-            relevant_talent = {
-                'talent_id': talent_id,
-                'match_by_cv': match_by_cv,
-                'match_by_form': match_by_form,
-                'first_name': first_name,
-                'last_name': last_name
-            }
-            relevant_talents.append(relevant_talent)
-            job.relevant_talents = relevant_talents
-            job.save()
-            users_logger.debug(f'Talent {talent_id} saved to job {job_id}')
-            return Response({'message': 'Talent saved successfully!'}, status=status.HTTP_200_OK)
-    else:
-        users_logger.debug(f'Talent {talent_id} already saved to job {job_id}')
-        return Response({'message': 'Talent already saved to this job'}, status=status.HTTP_400_BAD_REQUEST)
+        if any(talent['talent_id'] == talent_id for talent in relevant_talents):
+            users_logger.debug(f'Talent {talent_id} already saved to job {job_id}')
+            return Response({'message': 'Talent already saved to this job'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Append new talent to relevant_talents
+        relevant_talent = {
+            'talent_id': talent_id,
+            'match_by_cv': match_by_cv,
+            'match_by_form': match_by_form,
+            'first_name': first_name,
+            'last_name': last_name
+        }
+        relevant_talents.append(relevant_talent)
+        job.relevant_talents = relevant_talents
+        job.save()
+
+        users_logger.debug(f'Talent {talent_id} added to job {job_id}')
+        return Response({'message': 'Talent saved successfully!'}, status=status.HTTP_200_OK)
+
+    elif request.method == 'DELETE':
+        # Deleting a talent from the job
+        talent_id = request.data.get('talent_id')
+
+        if not talent_id:
+            return Response({'message': 'Talent ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        relevant_talents = job.relevant_talents or []
+
+        # Check if the talent exists
+        updated_talents = [talent for talent in relevant_talents if talent['talent_id'] != talent_id]
+
+        if len(updated_talents) == len(relevant_talents):
+            users_logger.debug(f'Talent {talent_id} not found in job {job_id}')
+            return Response({'message': 'Talent not found in this job'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Save updated talents list
+        job.relevant_talents = updated_talents
+        job.save()
+
+        users_logger.debug(f'Talent {talent_id} removed from job {job_id}')
+        return Response({'message': 'Talent removed successfully!'}, status=status.HTTP_200_OK)
+
+    # Method not allowed
+    return Response({'message': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
 
 
 @api_view(['GET'])
