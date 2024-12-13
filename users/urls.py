@@ -56,6 +56,13 @@ urlpatterns = [
 
 
 
+
+     path('auth/', google_calendar_auth, name='google_calendar_auth'),
+    # path('auth/redirect', google_calendar_callback, name='google_calendar_callback'),
+    # path('google-calendar/events/', get_google_calendar_events, name='google_calendar_events'),
+    # path("google-calendar/refresh-token/", refresh_google_token, name="refresh_google_token"),
+
+
     
 
 ]

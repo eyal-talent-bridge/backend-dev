@@ -1,4 +1,6 @@
 import logging,datetime,os,time
+from urllib.parse import urlencode
+from urllib.request import Request
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -6,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated,AllowAny
 from .serializers import *
 from .models import *
 from .utils import *
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login as auth_login, logout as logout_method
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -16,6 +18,12 @@ from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import check_password
 from django.db import IntegrityError
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
+from django.http import JsonResponse, HttpResponseRedirect
+from django.conf import settings
+
 
 
 
@@ -1017,3 +1025,130 @@ def get_talents(request):
     talents = Talent.objects.filter(is_open_to_work=True, )
     serializer = TalentSerializer(talents, many=True)
     return Response(serializer.data, status=200)
+
+
+
+
+
+# Path to your client_secret.json (downloaded from Google Cloud)
+CLIENT_SECRET_FILE = os.path.join(settings.BASE_DIR, 'client_secret.json')
+SCOPES = ['https://www.googleapis.com/auth/calendar']
+
+
+def google_calendar_auth(request):
+    try:
+        flow = Flow.from_client_secrets_file(
+            CLIENT_SECRET_FILE,
+            scopes=SCOPES,
+            redirect_uri="http://localhost:8000/api/v1/users/auth/redirect"
+        )
+        auth_url, _ = flow.authorization_url(access_type='offline',prompt='consent')
+        users_logger.info(f"Generated OAuth URL: {auth_url}")
+        return HttpResponseRedirect(auth_url)
+    except Exception as e:
+        users_logger.error(f"Error generating OAuth URL: {e}")
+        return JsonResponse({"error": "Failed to initiate OAuth flow"}, status=500)
+
+
+
+# def google_calendar_callback(request):
+#     code = request.GET.get('code')
+#     if not code:
+#         return JsonResponse({'error': 'No authorization code provided'}, status=400)
+
+#     try:
+#         flow = Flow.from_client_secrets_file(
+#             CLIENT_SECRET_FILE,
+#             scopes=SCOPES,
+#             redirect_uri="http://localhost:8000/api/v1/users/auth/redirect"
+#         )
+#         flow.fetch_token(code=code)
+#         credentials = flow.credentials
+
+#         print(f"Access Token: {credentials.token}")
+#         print(f"Refresh Token: {credentials.refresh_token}")
+#         print(f"Expiry: {credentials.expiry}")
+
+#         # Generate the redirect URL with tokens
+#         redirect_url = f"http://localhost:5173/recruiter/calendar?{urlencode({'access_token': credentials.token, 'refresh_token': credentials.refresh_token, 'expiry': credentials.expiry.isoformat()})}"
+
+#         return HttpResponseRedirect(redirect_url)
+#     except Exception as e:
+#         print(f"Error in OAuth callback: {e}")
+#         return JsonResponse({"error": f"Failed to complete OAuth flow: {str(e)}"}, status=500)
+# import json
+# import os
+
+# CLIENT_SECRET_FILE_PATH = os.path.join(settings.BASE_DIR, 'client_secret.json')
+
+# # Load client secret JSON
+# with open(CLIENT_SECRET_FILE_PATH, 'r') as file:
+#     CLIENT_SECRET_DATA = json.load(file)
+
+# def get_google_calendar_events(request):
+#     try:
+#         # Retrieve tokens from session
+#         token = request.session.get('google_access_token')
+#         refresh_token = request.session.get('google_refresh_token')
+
+#         # Debugging: Print tokens
+#         print("Access Token in Session:", token)
+#         print("Refresh Token in Session:", refresh_token)
+
+#         if not token:
+#             return JsonResponse({"error": "Missing Google Calendar credentials. Please authenticate again."}, status=401)
+
+#         credentials = Credentials(
+#             token=token,
+#             refresh_token=refresh_token,
+#             client_id=CLIENT_SECRET_DATA['web']['client_id'],
+#             client_secret=CLIENT_SECRET_DATA['web']['client_secret'],
+#             token_uri="https://oauth2.googleapis.com/token",
+#         )
+
+#         if credentials.expired or not credentials.valid:
+#             print("Refreshing token...")
+#             credentials.refresh(Request())
+#             request.session['google_access_token'] = credentials.token
+#             if credentials.refresh_token:
+#                 request.session['google_refresh_token'] = credentials.refresh_token
+#             request.session['google_token_expiry'] = credentials.expiry.isoformat()
+
+#         service = build('calendar', 'v3', credentials=credentials)
+#         events_result = service.events().list(
+#             calendarId='primary', maxResults=50, singleEvents=True, orderBy='startTime'
+#         ).execute()
+
+#         return JsonResponse({"events": events_result.get('items', [])}, safe=False)
+#     except Exception as e:
+#         print(f"Error fetching calendar events: {e}")
+#         return JsonResponse({"error": f"Failed to fetch events: {str(e)}"}, status=500)
+    
+# from google.oauth2.credentials import Credentials
+# from google.auth.transport.requests import Request
+# from django.http import JsonResponse
+
+# def refresh_google_token(request):
+#     if request.method != "POST":
+#         return JsonResponse({"error": "Invalid request method"}, status=405)
+
+#     refresh_token = request.POST.get("refresh_token")
+#     if not refresh_token:
+#         return JsonResponse({"error": "Refresh token is required"}, status=400)
+
+#     try:
+#         credentials = Credentials(
+#             None,
+#             refresh_token=refresh_token,
+#             client_id=CLIENT_SECRET_DATA['web']['client_id'],
+#             client_secret=CLIENT_SECRET_DATA['web']['client_secret'],
+#             token_uri="https://oauth2.googleapis.com/token",
+#         )
+#         credentials.refresh(Request())
+
+#         return JsonResponse({
+#             "access_token": credentials.token,
+#             "expiry": credentials.expiry.isoformat()
+#         })
+#     except Exception as e:
+#         return JsonResponse({"error": f"Failed to refresh token: {str(e)}"}, status=500)
