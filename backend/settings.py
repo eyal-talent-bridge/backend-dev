@@ -198,6 +198,45 @@ LOGOUT_REDIRECT_URL = '/'
 
 
 
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'simpleRe': {
+#             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+#             'style': '{',
+#         }
+#     },
+#     'handlers': {
+#         'users_file': {
+#             'level': 'DEBUG' if DEBUG else 'INFO',
+#             'class': 'logging.handlers.TimedRotatingFileHandler',
+#             'filename': os.path.join(BASE_DIR, 'logs/users.log'),
+#             'formatter': 'simpleRe',
+#             'when': 'midnight',
+#             'backupCount': 7,
+#         },
+
+#         'console': {
+#             'level': 'DEBUG' if DEBUG else 'INFO',
+#             'class': 'logging.StreamHandler',
+#             'formatter': 'simpleRe',
+#         },
+#     },
+#     'loggers': {
+#         'users': {
+#             'handlers': ['users_file', 'console'],
+#             'level': 'DEBUG' if DEBUG else 'INFO',
+#             'propagate': True,
+#         },
+# }
+# }
+
+import os
+
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -205,18 +244,17 @@ LOGGING = {
         'simpleRe': {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
-        }
+        },
     },
     'handlers': {
         'users_file': {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/users.log'),
+            'filename': os.path.join(LOG_DIR, 'users.log'),
             'formatter': 'simpleRe',
             'when': 'midnight',
             'backupCount': 7,
         },
-
         'console': {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'class': 'logging.StreamHandler',
@@ -229,9 +267,8 @@ LOGGING = {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
+    },
 }
-}
-
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
