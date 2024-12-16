@@ -32,7 +32,7 @@ class CustomUser(AbstractUser):
     class Meta:
         verbose_name = 'Custom User'
         verbose_name_plural = 'Custom Users'
-        db_table = 'custom_users'
+        # db_table ='custom_users'
 
    
 

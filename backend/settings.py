@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'users',
     'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
+    # 'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
     'channels',
     'corsheaders',
@@ -104,19 +104,19 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-
     # 'default': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': os.getenv('DB_NAME'),
-    #     'USER': os.getenv('DB_USER'),
-    #     'PASSWORD': os.getenv('DB_PASSWORD'),
-    #     'HOST': os.getenv('DB_HOST'),
-    #     'PORT': os.getenv('DB_PORT', '5432'),
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': BASE_DIR / 'db.sqlite3',
     # }
+
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+    }
 }
 
 
@@ -176,7 +176,7 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    # 'BLACKLIST_AFTER_ROTATION': True,
     'SIGNING_KEY': os.getenv('JWT_SECRET_KEY', SECRET_KEY),
     'ALGORITHM': 'HS256',
     'AUTH_HEADER_TYPES': ('Bearer',),
