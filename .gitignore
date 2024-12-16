@@ -5,3 +5,4 @@ logs/
 media/
 .env
 client_secret.json
+staticfiles/
