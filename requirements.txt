@@ -155,6 +155,7 @@ uuid==1.30
 vine==5.1.0
 wcwidth==0.2.10
 Werkzeug==3.0.1
+whitenoise==6.8.2
 widgetsnbextension==4.0.11
 wsproto==1.2.0
 yarl==1.15.5
