@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-import os
+import os,logging
 from dotenv import load_dotenv
 load_dotenv()
 # Build pathps inside the project like this: BASE_DIR / 'subdir'.
@@ -29,8 +29,9 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'fallback_default_secret')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['users.up.railway.app', '127.0.0.1', 'localhost']
 
+users_logger = logging.getLogger('users')
 
 # Application definition
 
@@ -70,14 +71,6 @@ MIDDLEWARE = [
 
 ]
 
-CORS_ALLOWED_ORIGINS = [
-   "http://localhost:5173",
-#    'production'
-   
-]
-
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'backend.urls'
 
@@ -247,6 +240,17 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 NOTIFICATION_SERVICE_URL = os.environ.setdefault('NOTIFICATION_SERVICE_URL', 'http://localhost:8070/api/v1/notifications/')
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://users.up.railway.app",
+    "http://localhost:8000",
+    "https://localhost:8000",
+]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173", 
+    "https://talent-bridge.up.railway.app", 
+    "https://users.up.railway.app",  
+]
+users_logger.info("Django settings loaded successfully")
 
 # # Add to INSTALLED_APPS
 # INSTALLED_APPS = [
