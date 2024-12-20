@@ -29,7 +29,7 @@ from django.conf import settings
 
 
 users_logger = logging.getLogger('users')
-
+USERS_SERVICE_URL= os.getenv('USERS_SERVICE_URL','http://localhost:8000/api/v1/users/')
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
@@ -1040,7 +1040,7 @@ def google_calendar_auth(request):
         flow = Flow.from_client_secrets_file(
             CLIENT_SECRET_FILE,
             scopes=SCOPES,
-            redirect_uri="http://localhost:8000/api/v1/users/auth/redirect"
+            redirect_uri=f"{USERS_SERVICE_URL}auth/redirect"
         )
         auth_url, _ = flow.authorization_url(access_type='offline',prompt='consent')
         users_logger.info(f"Generated OAuth URL: {auth_url}")
