@@ -4,7 +4,7 @@ from .models import CustomUser, Job, Talent, Company, Recruiter
 class CustomUserAdmin(admin.ModelAdmin):
     list_display = ('id', 'email', 'user_type', 'first_name', 'last_name', 'phone_number', 'license_type')
     search_fields = ('email', 'first_name', 'last_name', 'phone_number', 'license_type')
-    list_filter = ('user_type', 'gender', 'is_open_to_work', 'job_type', 'license_type')
+    list_filter = ('user_type', 'gender', 'is_open_to_work', 'job_type', 'license_type','age')
     ordering = ('-id',)
 
     def get_search_fields(self, request):

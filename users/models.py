@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-import uuid
+import uuid,datetime
+from django.utils import timezone
 
 # Custom upload paths for various file types
 def cv_upload_path(instance, filename):
@@ -26,11 +27,12 @@ class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     accept_terms = models.BooleanField(default=True)
     license_type = models.CharField(max_length=200, blank=True, null=True)
+    newsletter = models.BooleanField(default=False,blank=True, null=True)
 
     class Meta:
         verbose_name = 'Custom User'
         verbose_name_plural = 'Custom Users'
-        db_table = 'custom_users'
+        # db_table ='custom_users'
 
    
 
@@ -42,21 +44,33 @@ class CustomUser(AbstractUser):
 class Talent(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='talent_profile')
     gender = models.CharField(max_length=255, blank=True, null=True)
+    birth_date = models.DateField(default=datetime.date.today,blank=True, null=True)
     is_open_to_work = models.BooleanField(default=False,blank=True, null=True)
     residence = models.CharField(max_length=255, blank=True, null=True)
+    desired_salary = models.FloatField(default=0,blank=True,null=True)
     about_me = models.TextField(blank=True, null=True)
     job_type = models.CharField(max_length=255, blank=True, null=True)
     job_sitting = models.CharField(max_length=255, blank=True, null=True)
-    field_of_interest = models.JSONField(default=dict, blank=True)
-    social_links = models.JSONField(default=list, blank=True)
+    social_links = models.JSONField(default=dict, blank=True)
     companies_black_list = models.JSONField(default=list, blank=True)
-    skills = models.JSONField(default=dict, blank=True, null=True)
-    languages = models.JSONField(default=dict, blank=True, null=True)
+    skills = models.JSONField(default=list, blank=True, null=True)
+    languages = models.JSONField(default=list, blank=True, null=True)
     certificates = models.TextField(max_length=250, blank=True, null=True)
     open_processes = models.JSONField(blank=True, null=True)
     cv = models.FileField(upload_to=cv_upload_path, blank=True, null=True)
     profile_picture = models.ImageField(upload_to=profile_picture_upload_path, blank=True, null=True)
     recommendation_letter = models.FileField(upload_to=recommendation_letter_upload_path, blank=True, null=True)
+
+    @property
+    def age(self):
+        if self.birth_date:
+            today = timezone.now().date()
+            user_age = today.year - self.birth_date.year - (
+                (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
+            )
+            return user_age
+        return None
+
 
     def __str__(self):
         return self.user.email
@@ -64,9 +78,6 @@ class Talent(models.Model):
     db_table = 'Talents'
 
 # Company model extending CustomUser for specific fields
-from django.db import models
-import uuid
-
 class Company(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # UUID primary key
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='company_profile')
@@ -74,7 +85,7 @@ class Company(models.Model):
     website = models.URLField(max_length=200, blank=True, null=True)
     address = models.CharField(max_length=200, blank=True, null=True)
     job_history = models.JSONField(default=dict, blank=True, null=True)
-    divisions = models.JSONField(default=dict, blank=True)
+    divisions = models.JSONField(default=list, blank=True)
     open_jobs = models.ManyToManyField('Job', related_name='companies', blank=True)
 
     db_table = 'Companies'
@@ -91,8 +102,10 @@ class Recruiter(models.Model):
     position = models.CharField(max_length=255, blank=True, null=True)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='company_recruiters', null=True, blank=True)
     my_searchings = models.JSONField(default=dict, blank=True, null=True)
+    social_links = models.JSONField(default=dict, blank=True)
     working_time = models.JSONField(default=dict, blank=True, null=True)
-    
+    profile_picture = models.ImageField(upload_to=profile_picture_upload_path, blank=True, null=True)
+
     db_table = 'Recruiters'
 
 # Job model with proper ForeignKey references
@@ -106,8 +119,8 @@ class Job(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='jobs', null=True)  # Job belongs to a company
-    recruiter = models.ForeignKey(Recruiter, on_delete=models.CASCADE, related_name='jobs')  
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='jobs', null=True)  
+    recruiter = models.ForeignKey(Recruiter, on_delete=models.CASCADE, related_name='jobs',null=True)  
     description = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=200,blank=True, null=True)
     requirements = models.JSONField(default=list, blank=True)

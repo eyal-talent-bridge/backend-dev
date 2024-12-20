@@ -2,3 +2,7 @@ venv/
 .db.sqlite3
 logs/
 .DS/
+media/
+.env
+client_secret.json
+staticfiles/
