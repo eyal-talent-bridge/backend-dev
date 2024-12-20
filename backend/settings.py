@@ -246,11 +246,13 @@ CSRF_TRUSTED_ORIGINS = [
     "https://localhost:8000",
     'https://talent-bridge.up.railway.app',
 ]
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", 
     "https://talent-bridge.up.railway.app", 
     "https://users.up.railway.app",  
 ]
+CORS_ALLOW_CREDENTIALS = True
 users_logger.info("Django settings loaded successfully")
 
 # # Add to INSTALLED_APPS
