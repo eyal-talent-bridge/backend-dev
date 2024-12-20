@@ -12,7 +12,6 @@ from django.shortcuts import get_object_or_404, redirect
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login as auth_login, logout as logout_method
 from rest_framework_simplejwt.views import TokenObtainPairView
-from backend.settings import FRONTEND_URL
 from django.core.mail import send_mail,BadHeaderError
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
@@ -29,6 +28,8 @@ from django.conf import settings
 
 
 users_logger = logging.getLogger('users')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 USERS_SERVICE_URL= os.getenv('USERS_SERVICE_URL','http://localhost:8000/api/v1/users/')
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
@@ -287,7 +288,7 @@ def request_password_reset(request):
         return Response({"message": "User with this email does not exist."}, status=404)
 
     token = default_token_generator.make_token(user)
-    reset_link = f"{FRONTEND_URL}/auth/reset-password/{token}/?email={email}"
+    reset_link = f"{FRONTEND_URL}auth/reset-password/{token}/?email={email}"
 
     email_subject = "Password Reset Request - Talent-Bridge"
     email_body = (
@@ -306,7 +307,7 @@ def request_password_reset(request):
         send_mail(
             email_subject,
             email_body,
-            settings.DEFAULT_FROM_EMAIL,
+            DEFAULT_FROM_EMAIL,
             [user.email],
         )
     except BadHeaderError:
