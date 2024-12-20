@@ -244,6 +244,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://users.up.railway.app",
     "http://localhost:8000",
     "https://localhost:8000",
+    'https://talent-bridge.up.railway.app',
 ]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", 
