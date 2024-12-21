@@ -22,6 +22,9 @@ from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from django.http import JsonResponse, HttpResponseRedirect
 from django.conf import settings
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.core.exceptions import ObjectDoesNotExist
 
 
 
@@ -269,91 +272,6 @@ def recruiter_signup(request):
 @api_view(['POST'])
 def company_signup(request):
     return user_signup(request, 'Company')
-
-
-# --------------------------Password Handling------------------------------------------------------------
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def request_password_reset(request):
-    email = request.data.get('email')
-    if not email:
-        users_logger.warning("Password reset requested without providing an email.")
-        return Response({"message": "Email is required."}, status=400)
-
-    try:
-        user = CustomUser.objects.get(email=email)
-        users_logger.info(f"Password reset request received for existing user: {email}.")
-    except CustomUser.DoesNotExist:
-        users_logger.warning(f"Password reset attempted for non-existent user with email: {email}.")
-        return Response({"message": "User with this email does not exist."}, status=404)
-
-    token = default_token_generator.make_token(user)
-    reset_link = f"{FRONTEND_URL}auth/reset-password/{token}/?email={email}"
-
-    email_subject = "Password Reset Request - Talent-Bridge"
-    email_body = (
-        f"Dear {user.first_name},\n\n"
-        f"We received a request to reset your password for your Talent-Bridge account associated with this email address. "
-        f"If you made this request, please click the link below to reset your password:\n\n"
-        f"{reset_link}\n\n"
-        f"For security reasons, this link will expire in 24 hours. "
-        f"If you did not request a password reset, please ignore this email or contact our support team if you have any concerns.\n\n"
-        f"Thank you for using Talent-Bridge.\n\n"
-        f"Best regards,\n"
-        f"The Talent-Bridge Team"
-    )
-
-    try:
-        send_mail(
-            email_subject,
-            email_body,
-            DEFAULT_FROM_EMAIL,
-            [user.email],
-        )
-    except BadHeaderError:
-        users_logger.error(f"BadHeaderError: Invalid header encountered when sending email to {email}.")
-        return Response({"error": "Invalid header found."}, status=400)
-    except Exception as e:
-        users_logger.error(f"Error sending email to {email}: {e}")
-        return Response({"error": "An error occurred while sending the email."}, status=500)
-
-    users_logger.info(f"Password reset link successfully sent to {email}.")
-    return Response({"message": "Password reset link sent."}, status=200)
-
-
-@api_view(['PUT'])
-@permission_classes([AllowAny])
-def reset_password_confirm(request, token):
-    email = request.data.get('email')
-    new_password = request.data.get('newPassword')
-
-    users_logger.info(f"Password reset request received with token: {token}")
-
-    if not email or not new_password:
-        users_logger.warning("Email or new password not provided.")
-        return Response({"error": "Email and new password are required."}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        user = CustomUser.objects.get(email=email)
-    except CustomUser.DoesNotExist:
-        users_logger.warning(f"User with email {email} does not exist.")
-        return Response({"error": "Invalid email."}, status=status.HTTP_404_NOT_FOUND)
-
-    # Validate token and reset the password
-    if default_token_generator.check_token(user, token):
-        try:
-            user.set_password(new_password)
-            user.save()
-
-            users_logger.info(f"Password reset successfully for user with email: {user.email}")
-            return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            users_logger.error(f"Error saving new password for user with email {user.email}: {e}")
-            return Response({"error": "An error occurred while resetting the password."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        users_logger.warning(f"Invalid or expired token for user with email: {email}")
-        return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
@@ -1006,6 +924,35 @@ def check_auth(request):
     return Response({"message": "User is authenticated", "user_id": request.user.id})
 
 
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def get_user(request):
+    email = request.data.get('email')
+    if not email:
+        users_logger.warning("Password reset requested without providing an email.")
+        return Response({"error": "Email is required."}, status=400)
+
+    try:
+        # Fetch the user by email
+        user = CustomUser.objects.get(email=email)
+        users_logger.info(f"User found for email: {email}")
+    except ObjectDoesNotExist:
+        users_logger.warning(f"User not found for email: {email}")
+        return Response({"error": "User with this email does not exist."}, status=404)
+
+    # Generate password reset token and UID
+    token = default_token_generator.make_token(user)
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+    # Return user data
+    return Response({
+        "uid": uid,
+        "token": token,
+        "first_name": user.first_name,
+    }, status=200)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])  # Or use custom permissions for service accounts

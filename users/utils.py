@@ -1,8 +1,9 @@
-import logging,requests
+import logging,requests,os
 from .models import *
-import os
+
 
 NOTIFICATION_SERVICE_URL=os.getenv('NOTIFICATION_SERVICE_URL',"http://localhost:8070/api/v1/notifications/")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 users_logger = logging.getLogger('users')
 # -------------------------------------Talents-----------------------------------------------------------------------------------------------------------------------------------------------
 

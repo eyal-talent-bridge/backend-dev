@@ -22,8 +22,7 @@ urlpatterns = [
     
 
 
-    path('auth/request-password-reset/', request_password_reset, name='request_password_reset'),
-    path('auth/reset-password/<str:token>/', reset_password_confirm, name='reset_password_confirm'),
+    path('get_user/', get_user, name='get_user'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
