@@ -23,6 +23,8 @@ urlpatterns = [
 
 
     path('get_user/', get_user, name='get_user'),
+    path('validate-reset-token/', validate_reset_token, name='validate_reset_token'),
+    path('reset-password/', reset_password, name='reset_password'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 

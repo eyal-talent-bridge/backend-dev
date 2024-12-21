@@ -954,6 +954,45 @@ def get_user(request):
         "first_name": user.first_name,
     }, status=200)
 
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def validate_reset_token(request):
+    email = request.data.get('email')
+    token = request.data.get('token')
+
+    if not email or not token:
+        return Response({"error": "Email and token are required."}, status=400)
+
+    try:
+        user = CustomUser.objects.get(email=email)
+        if default_token_generator.check_token(user, token):
+            return Response({"message": "Token is valid."}, status=200)
+        else:
+            return Response({"error": "Invalid or expired token."}, status=400)
+    except CustomUser.DoesNotExist:
+        return Response({"error": "User does not exist."}, status=404)
+
+
+@api_view(['PUT'])
+@permission_classes([AllowAny])
+def reset_password(request):
+    email = request.data.get('email')
+    new_password = request.data.get('newPassword')
+
+    if not email or not new_password:
+        return Response({"error": "Email and new password are required."}, status=400)
+
+    try:
+        user = CustomUser.objects.get(email=email)
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "Password has been reset successfully."}, status=200)
+    except CustomUser.DoesNotExist:
+        return Response({"error": "User does not exist."}, status=404)
+    except Exception as e:
+        return Response({"error": "An error occurred while resetting the password."}, status=500)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])  # Or use custom permissions for service accounts
 def get_inactive_users(request):
